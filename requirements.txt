@@ -1,0 +1,9 @@
+numpy<2
+
+opencv-python-headless
+albumentations<2
+tqdm
+matplotlib
+scikit-image
+scikit-learn
+torchmetrics
