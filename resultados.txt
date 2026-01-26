@@ -1,0 +1,12 @@
+[INFO] Found 10919 samples
+Scanning masks: 100%|█████████████████████████████████████████████████████████████| 10919/10919 [30:18<00:00,  6.00it/s]
+
+=== Dataset statistics ===
+Total images: 10919
+Total pixels: 11449401344
+
+0 (Regolith  ):   7880576161 pixels ( 68.83%)
+1 (Crater    ):    151345337 pixels (  1.32%)
+2 (Rock      ):    243754117 pixels (  2.13%)
+3 (Mountain  ):    356751956 pixels (  3.12%)
+4 (Sky       ):   2816973773 pixels ( 24.60%)
