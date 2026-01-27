@@ -22,7 +22,7 @@ def colorize_mask(mask):
 
 
 dataset = LuSNARDataset("data")
-image, mask = dataset[0]
+image, mask = dataset[5000]
 
 image_np = np.array(image)
 mask_np = mask.numpy()
