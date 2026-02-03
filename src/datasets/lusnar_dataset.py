@@ -1,34 +1,37 @@
 from torch.utils.data import Dataset
-from pathlib import Path
 from PIL import Image
+from pathlib import Path
 import torch
+import torchvision.transforms.functional as TF
 
 from src.utils.label_utils import rgb_to_class
 
 
 class LuSNARDataset(Dataset):
-    def __init__(self, root_dir, camera="image0", transform=None):
+    def __init__(self, root_dir, image_size=256, transform=None):
         """
         root_dir: data/
-        camera: image0 (image1 no tiene labels)
+        image_size: int (e.g. 256 or 512)
+        transform: optional (for future use, e.g. albumentations)
         """
         self.root_dir = Path(root_dir)
-        self.camera = camera
+        self.image_size = image_size
         self.transform = transform
         self.samples = self._collect_samples()
 
         if len(self.samples) == 0:
             raise RuntimeError("No samples found. Check dataset structure.")
 
+        print(f"[INFO] Found {len(self.samples)} samples")
+
     def _collect_samples(self):
         samples = []
 
-        for scene_dir in sorted(self.root_dir.iterdir()):
-            if not scene_dir.is_dir():
-                continue
-
-            rgb_dir = scene_dir / self.camera / "color"
-            label_dir = scene_dir / self.camera / "label"
+        # Iterate over Moon_1, Moon_2, ...
+        for moon_dir in sorted(self.root_dir.glob("Moon_*")):
+            cam_dir = moon_dir / "image0"
+            rgb_dir = cam_dir / "color"
+            label_dir = cam_dir / "label"
 
             if not rgb_dir.exists() or not label_dir.exists():
                 continue
@@ -38,7 +41,6 @@ class LuSNARDataset(Dataset):
                 if label_path.exists():
                     samples.append((rgb_path, label_path))
 
-        print(f"[INFO] Found {len(samples)} samples")
         return samples
 
     def __len__(self):
@@ -47,13 +49,31 @@ class LuSNARDataset(Dataset):
     def __getitem__(self, idx):
         img_path, mask_path = self.samples[idx]
 
+        # --- Load ---
         image = Image.open(img_path).convert("RGB")
         mask_rgb = Image.open(mask_path).convert("RGB")
-        mask = rgb_to_class(mask_rgb)
 
-        if self.transform:
-            augmented = self.transform(image=image, mask=mask)
-            image = augmented["image"]
-            mask = augmented["mask"]
+        # --- Resize (CRITICAL: same size, different interpolation) ---
+        image = TF.resize(
+            image,
+            (self.image_size, self.image_size),
+            interpolation=Image.BILINEAR
+        )
 
-        return image, torch.tensor(mask, dtype=torch.long)
+        mask_rgb = TF.resize(
+            mask_rgb,
+            (self.image_size, self.image_size),
+            interpolation=Image.NEAREST
+        )
+
+        # --- Convert mask RGB → class indices ---
+        mask = rgb_to_class(mask_rgb)  # (H, W), int
+
+        # --- Image to tensor ---
+        image = TF.to_tensor(image)  # (3, H, W), float32 [0,1]
+
+        # --- Sanity check (very important during development) ---
+        assert image.shape[1:] == mask.shape, \
+            f"Image {image.shape}, Mask {mask.shape}"
+
+        return image, torch.as_tensor(mask, dtype=torch.long)
