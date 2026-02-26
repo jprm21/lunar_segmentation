@@ -1,0 +1,8 @@
+docker run -it --rm   -v ~/lunar-segmentation:/workspace/lunar-segmentation   -w /workspace/lunar-segmentation   lunar-seg
+
+
+docker run -it --rm \
+  --gpus all \
+  -v ~/lunar-segmentation:/workspace/lunar-segmentation \
+  -w /workspace/lunar-segmentation \
+  lunar-seg
