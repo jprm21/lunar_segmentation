@@ -82,6 +82,7 @@ def compute_iou(pred, target, num_classes):
 # -----------------------------
 # Training Loop
 # -----------------------------
+best_miou = 0.0
 for epoch in range(EPOCHS):
 
     # ---- TRAIN ----
@@ -127,3 +128,7 @@ for epoch in range(EPOCHS):
     print(f"Train Loss: {train_loss:.4f}")
     print(f"Test  Loss: {test_loss:.4f}")
     print(f"Test  mIoU: {mean_iou:.4f}")
+    if mean_iou > best_miou:
+        best_miou = mean_iou
+        torch.save(model.state_dict(), "best_model.pth")
+        print(f"✅ Best model saved at epoch {epoch+1} with mIoU: {mean_iou:.4f}")
