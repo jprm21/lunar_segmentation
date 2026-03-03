@@ -8,15 +8,17 @@ from src.utils.label_utils import rgb_to_class
 
 
 class LuSNARDataset(Dataset):
-    def __init__(self, root_dir, image_size=256, transform=None):
+    def __init__(self, root_dir, image_size=256, transform=None, scenes=None):
         """
         root_dir: data/
         image_size: int (e.g. 256 or 512)
-        transform: optional (for future use, e.g. albumentations)
+        scenes: list of ints (e.g. [1,2,4]) or None for all scenes
         """
         self.root_dir = Path(root_dir)
         self.image_size = image_size
         self.transform = transform
+        self.scenes = scenes  # ← NUEVO
+
         self.samples = self._collect_samples()
 
         if len(self.samples) == 0:
@@ -27,8 +29,14 @@ class LuSNARDataset(Dataset):
     def _collect_samples(self):
         samples = []
 
-        # Iterate over Moon_1, Moon_2, ...
         for moon_dir in sorted(self.root_dir.glob("Moon_*")):
+            # Extraer número de escena
+            scene_number = int(moon_dir.name.split("_")[-1])
+
+            # Filtrar si scenes está definido
+            if self.scenes is not None and scene_number not in self.scenes:
+                continue
+
             cam_dir = moon_dir / "image0"
             rgb_dir = cam_dir / "color"
             label_dir = cam_dir / "label"
