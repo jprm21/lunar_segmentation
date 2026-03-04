@@ -60,9 +60,9 @@ criterion = nn.CrossEntropyLoss(weight=class_weights)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 # -----------------------------
-# Función mIoU
+# IoU por clase
 # -----------------------------
-def compute_iou(pred, target, num_classes):
+def compute_iou_per_class(pred, target, num_classes):
     ious = []
 
     for cls in range(num_classes):
@@ -73,23 +73,25 @@ def compute_iou(pred, target, num_classes):
         union = (pred_inds | target_inds).sum().item()
 
         if union == 0:
-            continue
+            ious.append(float('nan'))
+        else:
+            ious.append(intersection / union)
 
-        ious.append(intersection / union)
-
-    return sum(ious) / len(ious)
+    return ious
 
 # -----------------------------
 # Training Loop
 # -----------------------------
 best_miou = 0.0
+class_names = ["Regolith", "Rock", "Crater", "Mountain", "Sky"]
+
 for epoch in range(EPOCHS):
 
     # ---- TRAIN ----
     model.train()
-    train_loss = 0
+    train_loss = 0.0
 
-    for images, masks in tqdm(train_loader):
+    for images, masks in tqdm(train_loader, desc="Training"):
         images = images.to(DEVICE)
         masks = masks.to(DEVICE)
 
@@ -105,8 +107,10 @@ for epoch in range(EPOCHS):
 
     # ---- TEST ----
     model.eval()
-    test_loss = 0
-    total_iou = 0
+    test_loss = 0.0
+
+    total_iou_per_class = [0.0] * NUM_CLASSES
+    counts_per_class = [0] * NUM_CLASSES
 
     with torch.no_grad():
         for images, masks in tqdm(test_loader, desc="Testing"):
@@ -118,16 +122,38 @@ for epoch in range(EPOCHS):
 
             preds = torch.argmax(outputs, dim=1)
 
-            total_iou += compute_iou(preds, masks, NUM_CLASSES)
+            ious = compute_iou_per_class(preds, masks, NUM_CLASSES)
+
+            for cls in range(NUM_CLASSES):
+                if not (ious[cls] != ious[cls]):  # check NaN
+                    total_iou_per_class[cls] += ious[cls]
+                    counts_per_class[cls] += 1
+
             test_loss += loss.item()
 
     test_loss /= len(test_loader)
-    mean_iou = total_iou / len(test_loader)
 
+    mean_iou_per_class = []
+    for cls in range(NUM_CLASSES):
+        if counts_per_class[cls] > 0:
+            mean_iou_per_class.append(
+                total_iou_per_class[cls] / counts_per_class[cls]
+            )
+        else:
+            mean_iou_per_class.append(float('nan'))
+
+    mean_iou = sum(mean_iou_per_class) / NUM_CLASSES
+
+    # ---- PRINT RESULTADOS ----
     print(f"\nEpoch [{epoch+1}/{EPOCHS}]")
     print(f"Train Loss: {train_loss:.4f}")
     print(f"Test  Loss: {test_loss:.4f}")
     print(f"Test  mIoU: {mean_iou:.4f}")
+
+    for cls in range(NUM_CLASSES):
+        print(f"IoU {class_names[cls]}: {mean_iou_per_class[cls]:.4f}")
+
+    # ---- GUARDAR MEJOR MODELO ----
     if mean_iou > best_miou:
         best_miou = mean_iou
         torch.save(model.state_dict(), "best_model.pth")
