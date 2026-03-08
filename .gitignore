@@ -3,3 +3,7 @@ data/
 
 #overgit outputs
 overfit_outputs/
+
+#archivos .pyc
+**/__pycache__/
+*.pyc
