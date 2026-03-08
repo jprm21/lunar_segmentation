@@ -50,7 +50,7 @@ test_loader  = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 # -----------------------------
 # Modelo
 # -----------------------------
-model = UNetMobileNet(num_classes=NUM_CLASSES, pretrained=False)
+model = UNetMobileNet(num_classes=NUM_CLASSES, pretrained=True)
 model.to(DEVICE)
 
 class_weights = load_class_weights("data/class_weights.json")
