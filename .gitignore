@@ -7,3 +7,6 @@ overfit_outputs/
 #archivos .pyc
 **/__pycache__/
 **/*.pyc
+
+#modelos
+*.pth
