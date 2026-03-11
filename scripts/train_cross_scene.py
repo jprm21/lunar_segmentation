@@ -4,11 +4,14 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
-from torch.utils.data import DataLoader
+from PIL import Image
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm import tqdm
+import torchvision.transforms.functional as TF
 
 from src.datasets.lusnar_dataset import LuSNARDataset
 from src.models.unet_mobilenet import UNetMobileNet
+from src.utils.label_utils import rgb_to_class
 from src.utils.losses import CombinedSegmentationLoss, load_class_weights
 
 # -----------------------------
@@ -30,6 +33,32 @@ TEST_SCENES = [3, 5, 7]
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_ROOT = PROJECT_ROOT / "data"
 
+
+def build_train_sampler(dataset, image_size):
+    """Build per-image weights to oversample samples with rare classes (1, 2)."""
+    sample_weights = []
+
+    for _, mask_path in dataset.samples:
+        mask_rgb = Image.open(mask_path).convert("RGB")
+        mask_rgb = TF.resize(
+            mask_rgb,
+            (image_size, image_size),
+            interpolation=Image.NEAREST,
+        )
+        mask = torch.as_tensor(rgb_to_class(mask_rgb), dtype=torch.long)
+
+        rare_pixels = (mask == 1).sum().item() + (mask == 2).sum().item()
+        total_pixels = mask.numel()
+        weight = 1.0 + 3.0 * (rare_pixels / total_pixels)
+        sample_weights.append(weight)
+
+    return WeightedRandomSampler(
+        weights=torch.as_tensor(sample_weights, dtype=torch.double),
+        num_samples=len(dataset),
+        replacement=True,
+    )
+
+
 # -----------------------------
 # Datasets
 # -----------------------------
@@ -37,6 +66,10 @@ train_dataset = LuSNARDataset(
     root_dir=DATA_ROOT,
     image_size=IMAGE_SIZE,
     scenes=TRAIN_SCENES,
+    use_class_aware_crop=True,
+    crop_size=IMAGE_SIZE,
+    target_classes=(1, 2),
+    max_crop_tries=10,
 )
 
 test_dataset = LuSNARDataset(
@@ -45,7 +78,14 @@ test_dataset = LuSNARDataset(
     scenes=TEST_SCENES,
 )
 
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+train_sampler = build_train_sampler(train_dataset, image_size=IMAGE_SIZE)
+
+train_loader = DataLoader(
+    train_dataset,
+    batch_size=BATCH_SIZE,
+    sampler=train_sampler,
+    shuffle=False,
+)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 # -----------------------------
@@ -69,6 +109,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=WEIGHT_DECAY,
 )
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+
 
 # -----------------------------
 # IoU por clase
