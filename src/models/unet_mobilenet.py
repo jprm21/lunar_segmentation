@@ -73,7 +73,7 @@ class AttentionGate(nn.Module):
 
 
 class UNetMobileNet(nn.Module):
-    def __init__(self, num_classes=5, pretrained=False):
+    def __init__(self, num_classes=5, pretrained=True):
         super().__init__()
 
         backbone = models.mobilenet_v2(
