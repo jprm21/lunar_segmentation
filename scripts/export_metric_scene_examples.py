@@ -35,7 +35,7 @@ def parse_args():
         "--models-root",
         type=Path,
         default=ROOT,
-        help='Root directory where one or more "best_model.pth" files are stored.',
+        help='Root directory where one or more "best_model_*.pth" files are stored.',
     )
     parser.add_argument("--output-dir", type=Path, default=ROOT / "model_examples")
     parser.add_argument("--image-size", type=int, default=1024)
@@ -107,7 +107,12 @@ def load_and_prepare_sample(rgb_path, label_path, image_size, device):
     )
 
     image_tensor = TF.to_tensor(image_resized).unsqueeze(0).to(device)
-    image_np = (image_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+    image_np = (
+        image_tensor.squeeze(0)
+        .permute(1, 2, 0)
+        .cpu()
+        .numpy() * 255
+    ).astype(np.uint8)
 
     gt_mask_np = rgb_to_class(mask_resized)
 
@@ -121,12 +126,9 @@ def infer_mask(model, image_tensor):
     return pred_mask.squeeze(0).cpu().numpy()
 
 
-def model_output_dir(models_root, model_path):
-    relative_parent = model_path.parent.relative_to(models_root)
-    relative_name = str(relative_parent).replace("/", "_")
-    if not relative_name or relative_name == ".":
-        relative_name = "root"
-    return relative_name
+def model_output_dir(model_path):
+    # Usa el nombre del archivo sin extensión como nombre de carpeta
+    return model_path.stem
 
 
 def main():
@@ -137,17 +139,20 @@ def main():
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    model_paths = sorted(args.models_root.rglob("best_model.pth"))
+    model_paths = sorted(args.models_root.rglob("best_model_*.pth"))
+
     if not model_paths:
         raise RuntimeError(
-            f'No "best_model.pth" files found under: {args.models_root}'
+            f'No "best_model_*.pth" files found under: {args.models_root}'
         )
 
     print(f"[INFO] Found {len(model_paths)} model(s)")
 
     scene_samples = {}
     for scene_id in args.scenes:
-        scene_samples[scene_id] = find_first_scene_sample(args.data_root, scene_id)
+        scene_samples[scene_id] = find_first_scene_sample(
+            args.data_root, scene_id
+        )
 
     for model_path in model_paths:
         print(f"\n[INFO] Processing model: {model_path}")
@@ -158,7 +163,7 @@ def main():
         model.to(device)
         model.eval()
 
-        run_name = model_output_dir(args.models_root, model_path)
+        run_name = model_output_dir(model_path)
         model_out_dir = args.output_dir / run_name
         model_out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -169,8 +174,12 @@ def main():
                 image_size=args.image_size,
                 device=device,
             )
+
             pred_mask_np = infer_mask(model, image_tensor)
-            panel_image = build_horizontal_panel(image_np, gt_mask_np, pred_mask_np)
+
+            panel_image = build_horizontal_panel(
+                image_np, gt_mask_np, pred_mask_np
+            )
 
             output_path = model_out_dir / f"scene_{scene_id:02d}_{rgb_path.stem}.png"
             panel_image.save(output_path)
