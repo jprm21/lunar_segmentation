@@ -19,12 +19,12 @@ from src.utils.losses import CombinedSegmentationLoss, load_class_weights
 # -----------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using device:", DEVICE)
-print("version 348, imbalanced")
+print("version 1024, imbalanced")
 NUM_CLASSES = 5
 BATCH_SIZE = 4
 EPOCHS = 40
 LR = 3e-4
-IMAGE_SIZE = 512
+IMAGE_SIZE = 1024
 WEIGHT_DECAY = 1e-4
 
 TRAIN_SCENES = [1, 2, 4, 6, 8, 9]
@@ -212,5 +212,5 @@ for epoch in range(EPOCHS):
     # ---- GUARDAR MEJOR MODELO ----
     if mean_iou > best_miou:
         best_miou = mean_iou
-        torch.save(model.state_dict(), "best_model.pth")
+        torch.save(model.state_dict(), "best_model_im_1024.pth")
         print(f"✅ Best model saved at epoch {epoch + 1} with mIoU: {mean_iou:.4f}")
