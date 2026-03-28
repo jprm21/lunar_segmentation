@@ -15,37 +15,33 @@ from src.utils.label_utils import rgb_to_class
 
 
 CLASS_COLORS = {
-    0: (187, 70, 156),   # Regolith
-    1: (120, 0, 200),    # Crater
-    2: (232, 250, 80),   # Rock
-    3: (173, 69, 31),    # Mountain
-    4: (34, 201, 248),   # Sky
+    0: (187, 70, 156),
+    1: (120, 0, 200),
+    2: (232, 250, 80),
+    3: (173, 69, 31),
+    4: (34, 201, 248),
 }
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description=(
-            "Export horizontal comparison images (RGB | GT | Prediction overlay) "
-            "for scenes used in metrics."
-        )
+        description="Run inference for ONE model with controlled input size."
     )
+
     parser.add_argument("--data-root", type=Path, default=ROOT / "data")
-    parser.add_argument(
-        "--models-root",
-        type=Path,
-        default=ROOT,
-        help='Root directory where one or more "best_model_*.pth" files are stored.',
-    )
+    parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "model_examples")
-    parser.add_argument("--image-size", type=int, default=1024)
+
+    # 🔥 control explícito de resolución
+    parser.add_argument("--input-size", type=int, default=512)
+
     parser.add_argument(
         "--scenes",
         type=int,
         nargs="+",
         default=[3, 5, 7],
-        help="Scenes used in metrics.",
     )
+
     return parser.parse_args()
 
 
@@ -53,20 +49,8 @@ def find_first_scene_sample(data_root, scene_id):
     rgb_dir = data_root / f"Moon_{scene_id}" / "image0" / "color"
     label_dir = data_root / f"Moon_{scene_id}" / "image0" / "label"
 
-    if not rgb_dir.exists() or not label_dir.exists():
-        raise FileNotFoundError(f"Scene {scene_id} not found at: {rgb_dir}")
-
-    rgb_images = sorted(rgb_dir.glob("*.png"))
-    if not rgb_images:
-        raise RuntimeError(f"No RGB images found for scene {scene_id} at: {rgb_dir}")
-
-    rgb_path = rgb_images[0]
+    rgb_path = sorted(rgb_dir.glob("*.png"))[0]
     label_path = label_dir / rgb_path.name
-
-    if not label_path.exists():
-        raise RuntimeError(
-            f"Ground truth for scene {scene_id} image {rgb_path.name} not found at: {label_path}"
-        )
 
     return rgb_path, label_path
 
@@ -87,26 +71,27 @@ def build_horizontal_panel(image_np, gt_mask_np, pred_mask_np):
 
     overlay = (0.6 * image_np + 0.4 * pred_color).astype(np.uint8)
 
-    panel = np.concatenate([image_np, gt_color, overlay], axis=1)
-    return Image.fromarray(panel)
+    return Image.fromarray(
+        np.concatenate([image_np, gt_color, overlay], axis=1)
+    )
 
 
-def load_and_prepare_sample(rgb_path, label_path, image_size, device):
-    image_pil = Image.open(rgb_path).convert("RGB")
-    mask_pil = Image.open(label_path).convert("RGB")
-
+def preprocess(image_pil, mask_pil, input_size, device):
+    # 🔥 resize controlado por argumento
     image_resized = TF.resize(
         image_pil,
-        (image_size, image_size),
+        (input_size, input_size),
         interpolation=Image.BILINEAR,
     )
+
     mask_resized = TF.resize(
         mask_pil,
-        (image_size, image_size),
+        (input_size, input_size),
         interpolation=Image.NEAREST,
     )
 
     image_tensor = TF.to_tensor(image_resized).unsqueeze(0).to(device)
+
     image_np = (
         image_tensor.squeeze(0)
         .permute(1, 2, 0)
@@ -119,16 +104,12 @@ def load_and_prepare_sample(rgb_path, label_path, image_size, device):
     return image_tensor, image_np, gt_mask_np
 
 
-def infer_mask(model, image_tensor):
+def infer(model, image_tensor):
     with torch.no_grad():
         logits = model(image_tensor)
         pred_mask = torch.argmax(logits, dim=1)
+
     return pred_mask.squeeze(0).cpu().numpy()
-
-
-def model_output_dir(model_path):
-    # Usa el nombre del archivo sin extensión como nombre de carpeta
-    return model_path.stem
 
 
 def main():
@@ -137,54 +118,54 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using device:", device)
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+    # 🔥 modelo individual
+    print(f"[INFO] Loading model: {args.model_path}")
 
-    model_paths = sorted(args.models_root.rglob("best_model_*.pth"))
+    model = UNetMobileNet(num_classes=5, pretrained=True)
+    state_dict = torch.load(args.model_path, map_location=device)
 
-    if not model_paths:
-        raise RuntimeError(
-            f'No "best_model_*.pth" files found under: {args.models_root}'
-        )
+    try:
+        model.load_state_dict(state_dict)
+    except RuntimeError as e:
+        print("[ERROR] Model incompatible with this architecture")
+        print(e)
+        return
 
-    print(f"[INFO] Found {len(model_paths)} model(s)")
+    model.to(device)
+    model.eval()
 
-    scene_samples = {}
+    # 🔥 carpeta por nombre del modelo
+    run_name = args.model_path.stem
+    output_dir = args.output_dir / run_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     for scene_id in args.scenes:
-        scene_samples[scene_id] = find_first_scene_sample(
+        rgb_path, label_path = find_first_scene_sample(
             args.data_root, scene_id
         )
 
-    for model_path in model_paths:
-        print(f"\n[INFO] Processing model: {model_path}")
+        image_pil = Image.open(rgb_path).convert("RGB")
+        mask_pil = Image.open(label_path).convert("RGB")
 
-        model = UNetMobileNet(num_classes=5, pretrained=True)
-        state_dict = torch.load(model_path, map_location=device)
-        model.load_state_dict(state_dict)
-        model.to(device)
-        model.eval()
+        image_tensor, image_np, gt_mask_np = preprocess(
+            image_pil,
+            mask_pil,
+            args.input_size,
+            device,
+        )
 
-        run_name = model_output_dir(model_path)
-        model_out_dir = args.output_dir / run_name
-        model_out_dir.mkdir(parents=True, exist_ok=True)
+        pred_mask_np = infer(model, image_tensor)
 
-        for scene_id, (rgb_path, label_path) in scene_samples.items():
-            image_tensor, image_np, gt_mask_np = load_and_prepare_sample(
-                rgb_path,
-                label_path,
-                image_size=args.image_size,
-                device=device,
-            )
+        panel = build_horizontal_panel(
+            image_np,
+            gt_mask_np,
+            pred_mask_np,
+        )
 
-            pred_mask_np = infer_mask(model, image_tensor)
+        output_path = output_dir / f"scene_{scene_id:02d}.png"
+        panel.save(output_path)
 
-            panel_image = build_horizontal_panel(
-                image_np, gt_mask_np, pred_mask_np
-            )
-
-            output_path = model_out_dir / f"scene_{scene_id:02d}_{rgb_path.stem}.png"
-            panel_image.save(output_path)
-
-            print(f"  Saved: {output_path}")
+        print(f"[OK] Saved: {output_path}")
 
 
 if __name__ == "__main__":
