@@ -25,15 +25,21 @@ CLASS_COLORS = {
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run inference for ONE model with controlled input size."
+        description="Run inference for ONE model with controlled input size and image index."
     )
 
     parser.add_argument("--data-root", type=Path, default=ROOT / "data")
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "model_examples")
 
-    # 🔥 control explícito de resolución
     parser.add_argument("--input-size", type=int, default=512)
+
+    parser.add_argument(
+        "--image-index",
+        type=int,
+        default=0,
+        help="Index of the image inside each scene (default: 0)",
+    )
 
     parser.add_argument(
         "--scenes",
@@ -45,12 +51,28 @@ def parse_args():
     return parser.parse_args()
 
 
-def find_first_scene_sample(data_root, scene_id):
+def find_scene_sample_by_index(data_root, scene_id, image_index):
     rgb_dir = data_root / f"Moon_{scene_id}" / "image0" / "color"
     label_dir = data_root / f"Moon_{scene_id}" / "image0" / "label"
 
-    rgb_path = sorted(rgb_dir.glob("*.png"))[0]
+    if not rgb_dir.exists() or not label_dir.exists():
+        raise FileNotFoundError(f"Scene {scene_id} not found")
+
+    rgb_images = sorted(rgb_dir.glob("*.png"))
+
+    if not rgb_images:
+        raise RuntimeError(f"No images in scene {scene_id}")
+
+    if image_index >= len(rgb_images):
+        raise IndexError(
+            f"Index {image_index} out of range (max {len(rgb_images)-1}) in scene {scene_id}"
+        )
+
+    rgb_path = rgb_images[image_index]
     label_path = label_dir / rgb_path.name
+
+    if not label_path.exists():
+        raise RuntimeError(f"Missing GT for {rgb_path.name}")
 
     return rgb_path, label_path
 
@@ -69,7 +91,7 @@ def build_horizontal_panel(image_np, gt_mask_np, pred_mask_np):
     gt_color = colorize_mask(gt_mask_np)
     pred_color = colorize_mask(pred_mask_np)
 
-    overlay = (0.6 * image_np + 0.4 * pred_color).astype(np.uint8)
+    overlay = (0.4 * image_np + 0.6 * pred_color).astype(np.uint8)
 
     return Image.fromarray(
         np.concatenate([image_np, gt_color, overlay], axis=1)
@@ -77,7 +99,6 @@ def build_horizontal_panel(image_np, gt_mask_np, pred_mask_np):
 
 
 def preprocess(image_pil, mask_pil, input_size, device):
-    # 🔥 resize controlado por argumento
     image_resized = TF.resize(
         image_pil,
         (input_size, input_size),
@@ -118,7 +139,6 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using device:", device)
 
-    # 🔥 modelo individual
     print(f"[INFO] Loading model: {args.model_path}")
 
     model = UNetMobileNet(num_classes=5, pretrained=True)
@@ -127,21 +147,22 @@ def main():
     try:
         model.load_state_dict(state_dict)
     except RuntimeError as e:
-        print("[ERROR] Model incompatible with this architecture")
+        print("[ERROR] Incompatible model architecture")
         print(e)
         return
 
     model.to(device)
     model.eval()
 
-    # 🔥 carpeta por nombre del modelo
     run_name = args.model_path.stem
     output_dir = args.output_dir / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for scene_id in args.scenes:
-        rgb_path, label_path = find_first_scene_sample(
-            args.data_root, scene_id
+        rgb_path, label_path = find_scene_sample_by_index(
+            args.data_root,
+            scene_id,
+            args.image_index,
         )
 
         image_pil = Image.open(rgb_path).convert("RGB")
@@ -162,7 +183,7 @@ def main():
             pred_mask_np,
         )
 
-        output_path = output_dir / f"scene_{scene_id:02d}.png"
+        output_path = output_dir / f"scene_{scene_id:02d}_idx_{args.image_index}.png"
         panel.save(output_path)
 
         print(f"[OK] Saved: {output_path}")
