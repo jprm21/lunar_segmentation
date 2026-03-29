@@ -19,12 +19,12 @@ from src.utils.losses import CombinedSegmentationLoss, load_class_weights
 # -----------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using device:", DEVICE)
-print("version 1024, imbalanced")
+print("version 384, crop corregido imbalanced")
 NUM_CLASSES = 5
 BATCH_SIZE = 4
 EPOCHS = 40
 LR = 3e-4
-IMAGE_SIZE = 1024
+IMAGE_SIZE = 384
 WEIGHT_DECAY = 1e-4
 
 TRAIN_SCENES = [1, 2, 4, 6, 8, 9]
@@ -67,7 +67,7 @@ train_dataset = LuSNARDataset(
     image_size=IMAGE_SIZE,
     scenes=TRAIN_SCENES,
     use_class_aware_crop=True,
-    crop_size=IMAGE_SIZE,
+    crop_size=max(32, (int(0.7*IMAGE_SIZE)//32)*32),
     target_classes=(1, 2),
     max_crop_tries=10,
 )
