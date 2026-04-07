@@ -3,7 +3,9 @@ from PIL import Image
 from pathlib import Path
 import random
 import torch
+import torchvision.transforms as T
 import torchvision.transforms.functional as TF
+from torchvision.transforms import InterpolationMode
 
 from src.utils.label_utils import rgb_to_class
 
@@ -65,6 +67,7 @@ class LuSNARDataset(Dataset):
         crop_size=256,
         target_classes=(1, 2),
         max_crop_tries=10,
+        augmentation_profile="default",
     ):
         """
         root_dir: data/
@@ -74,11 +77,12 @@ class LuSNARDataset(Dataset):
         self.root_dir = Path(root_dir)
         self.image_size = image_size
         self.transform = transform
-        self.scenes = scenes  # ← NUEVO
+        self.scenes = scenes
         self.use_class_aware_crop = use_class_aware_crop
         self.crop_size = crop_size
         self.target_classes = target_classes
         self.max_crop_tries = max_crop_tries
+        self.augmentation_profile = augmentation_profile
 
         self.samples = self._collect_samples()
 
@@ -91,10 +95,8 @@ class LuSNARDataset(Dataset):
         samples = []
 
         for moon_dir in sorted(self.root_dir.glob("Moon_*")):
-            # Extraer número de escena
             scene_number = int(moon_dir.name.split("_")[-1])
 
-            # Filtrar si scenes está definido
             if self.scenes is not None and scene_number not in self.scenes:
                 continue
 
@@ -115,28 +117,25 @@ class LuSNARDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
-    def __getitem__(self, idx):
+    def _load_preprocessed_pair(self, idx):
         img_path, mask_path = self.samples[idx]
 
-        # --- Load ---
         image = Image.open(img_path).convert("RGB")
         mask_rgb = Image.open(mask_path).convert("RGB")
 
-        # --- Resize (CRITICAL: same size, different interpolation) ---
         image = TF.resize(
             image,
             (self.image_size, self.image_size),
-            interpolation=Image.BILINEAR
+            interpolation=Image.BILINEAR,
         )
 
         mask_rgb = TF.resize(
             mask_rgb,
             (self.image_size, self.image_size),
-            interpolation=Image.NEAREST
+            interpolation=Image.NEAREST,
         )
 
-        # --- Convert mask RGB → class indices ---
-        mask = rgb_to_class(mask_rgb)  # (H, W), int
+        mask = rgb_to_class(mask_rgb)
 
         if self.use_class_aware_crop:
             image, mask = random_crop_with_class(
@@ -149,10 +148,82 @@ class LuSNARDataset(Dataset):
         else:
             mask = torch.as_tensor(mask, dtype=torch.long)
 
-        # --- Image to tensor ---
-        image = TF.to_tensor(image)  # (3, H, W), float32 [0,1]
+        image = TF.to_tensor(image)
+        return image, mask
 
-        # --- Sanity check (very important during development) ---
+    def _apply_augmentations(self, image, mask):
+        if self.augmentation_profile != "rock_light":
+            return image, mask
+
+        i, j, h, w = T.RandomResizedCrop.get_params(
+            image,
+            scale=(0.75, 1.0),
+            ratio=(0.95, 1.05),
+        )
+
+        image = TF.resized_crop(
+            image,
+            top=i,
+            left=j,
+            height=h,
+            width=w,
+            size=[self.image_size, self.image_size],
+            interpolation=InterpolationMode.BILINEAR,
+            antialias=True,
+        )
+
+        mask = TF.resized_crop(
+            mask.unsqueeze(0).float(),
+            top=i,
+            left=j,
+            height=h,
+            width=w,
+            size=[self.image_size, self.image_size],
+            interpolation=InterpolationMode.NEAREST,
+        ).squeeze(0).long()
+
+        angle = random.uniform(-20.0, 20.0)
+        image = TF.rotate(
+            image,
+            angle=angle,
+            interpolation=InterpolationMode.BILINEAR,
+            fill=0.0,
+        )
+        mask = TF.rotate(
+            mask.unsqueeze(0).float(),
+            angle=angle,
+            interpolation=InterpolationMode.NEAREST,
+            fill=0,
+        ).squeeze(0).long()
+
+        if random.random() < 0.5:
+            image = TF.hflip(image)
+            mask = TF.hflip(mask)
+
+        if random.random() < 0.5:
+            image = TF.vflip(image)
+            mask = TF.vflip(mask)
+
+        if random.random() < 0.3:
+            brightness_factor = random.uniform(0.9, 1.1)
+            contrast_factor = random.uniform(0.85, 1.15)
+            image = TF.adjust_brightness(image, brightness_factor)
+            image = TF.adjust_contrast(image, contrast_factor)
+
+        return image, mask
+
+    def get_preview_pair(self, idx):
+        image, mask = self._load_preprocessed_pair(idx)
+        original_image = image.clone()
+        original_mask = mask.clone()
+        aug_image, aug_mask = self._apply_augmentations(image, mask)
+        return original_image, original_mask, aug_image, aug_mask
+
+    def __getitem__(self, idx):
+        image, mask = self._load_preprocessed_pair(idx)
+
+        image, mask = self._apply_augmentations(image, mask)
+
         assert image.shape[1:] == mask.shape, \
             f"Image {image.shape}, Mask {mask.shape}"
 
