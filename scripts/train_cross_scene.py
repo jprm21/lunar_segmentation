@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -12,7 +13,7 @@ import torchvision.transforms.functional as TF
 
 from src.datasets.lusnar_dataset import LuSNARDataset
 from src.models.unet_mobilenet import UNetMobileNet
-from src.utils.label_utils import rgb_to_class
+from src.utils.label_utils import CLASS_COLORS, rgb_to_class
 from src.utils.losses import CombinedSegmentationLoss, load_class_weights
 
 
@@ -79,6 +80,17 @@ def build_train_sampler(dataset, image_size):
     )
 
 
+
+
+def mask_to_color_preview(mask_tensor):
+    mask_np = mask_tensor.cpu().numpy().astype(np.uint8)
+    color_mask = np.zeros((mask_np.shape[0], mask_np.shape[1], 3), dtype=np.uint8)
+
+    for rgb, class_id in CLASS_COLORS.items():
+        color_mask[mask_np == class_id] = rgb
+
+    return Image.fromarray(color_mask)
+
 def save_augmentation_preview(dataset, output_dir, count):
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -87,9 +99,11 @@ def save_augmentation_preview(dataset, output_dir, count):
         original_image, original_mask, aug_image, aug_mask = dataset.get_preview_pair(idx)
 
         TF.to_pil_image(original_image).save(output_dir / f"sample_{idx:02d}_original_image.png")
-        TF.to_pil_image(original_mask.to(torch.uint8)).save(output_dir / f"sample_{idx:02d}_original_mask.png")
+        TF.to_pil_image(original_mask.to(torch.uint8)).save(output_dir / f"sample_{idx:02d}_original_mask_raw.png")
+        mask_to_color_preview(original_mask).save(output_dir / f"sample_{idx:02d}_original_mask_color.png")
         TF.to_pil_image(aug_image).save(output_dir / f"sample_{idx:02d}_augmented_image.png")
-        TF.to_pil_image(aug_mask.to(torch.uint8)).save(output_dir / f"sample_{idx:02d}_augmented_mask.png")
+        TF.to_pil_image(aug_mask.to(torch.uint8)).save(output_dir / f"sample_{idx:02d}_augmented_mask_raw.png")
+        mask_to_color_preview(aug_mask).save(output_dir / f"sample_{idx:02d}_augmented_mask_color.png")
 
     print(f"[INFO] Saved {total} augmentation previews to: {output_dir}")
 
