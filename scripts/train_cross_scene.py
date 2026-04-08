@@ -52,6 +52,18 @@ def parse_args():
         default=5,
         help="Number of augmentation previews to save when --save-aug-preview-dir is set.",
     )
+    parser.add_argument(
+        "--crop-scale",
+        type=float,
+        default=0.85,
+        help="Class-aware crop scale relative to image_size (kept >= 0.5 recommended).",
+    )
+    parser.add_argument(
+        "--rock-crop-prob",
+        type=float,
+        default=0.5,
+        help="Probability of targeting Rock (class 2) in dual class-aware crop. Crater gets 1-p.",
+    )
     return parser.parse_args()
 
 
@@ -109,37 +121,38 @@ def save_augmentation_preview(dataset, output_dir, count):
 
 
 def compute_iou_per_class(pred, target, num_classes):
-    ious = []
+    intersections = torch.zeros(num_classes, dtype=torch.float64, device=pred.device)
+    unions = torch.zeros(num_classes, dtype=torch.float64, device=pred.device)
 
     for cls in range(num_classes):
         pred_inds = pred == cls
         target_inds = target == cls
+        intersections[cls] = (pred_inds & target_inds).sum()
+        unions[cls] = (pred_inds | target_inds).sum()
 
-        intersection = (pred_inds & target_inds).sum().item()
-        union = (pred_inds | target_inds).sum().item()
-
-        if union == 0:
-            ious.append(float("nan"))
-        else:
-            ious.append(intersection / union)
-
-    return ious
+    return intersections, unions
 
 
 def main():
     args = parse_args()
 
+    args.rock_crop_prob = min(max(args.rock_crop_prob, 0.0), 1.0)
+    crop_scale = max(0.5, min(args.crop_scale, 1.0))
+
     print("Using device:", DEVICE)
     print("version 256, crop corregido imbalanced al 70%")
     print(f"[INFO] Active augmentation profile: {args.augmentation_profile}")
+    print(f"[INFO] Crop scale: {crop_scale:.2f}")
+    print(f"[INFO] Dual crop target probs -> crater: {1.0 - args.rock_crop_prob:.2f}, rock: {args.rock_crop_prob:.2f}")
 
     train_dataset = LuSNARDataset(
         root_dir=DATA_ROOT,
         image_size=IMAGE_SIZE,
         scenes=TRAIN_SCENES,
         use_class_aware_crop=True,
-        crop_size=max(32, (int(0.7 * IMAGE_SIZE) // 32) * 32),
+        crop_size=max(32, (int(crop_scale * IMAGE_SIZE) // 32) * 32),
         target_classes=(1, 2),
+        crop_target_probs={1: 1.0 - args.rock_crop_prob, 2: args.rock_crop_prob},
         max_crop_tries=10,
         augmentation_profile=args.augmentation_profile,
     )
@@ -210,8 +223,8 @@ def main():
         model.eval()
         test_loss = 0.0
 
-        total_iou_per_class = [0.0] * NUM_CLASSES
-        counts_per_class = [0] * NUM_CLASSES
+        total_intersections = torch.zeros(NUM_CLASSES, dtype=torch.float64, device=DEVICE)
+        total_unions = torch.zeros(NUM_CLASSES, dtype=torch.float64, device=DEVICE)
 
         with torch.no_grad():
             for images, masks in tqdm(test_loader, desc="Testing"):
@@ -223,27 +236,26 @@ def main():
 
                 preds = torch.argmax(outputs, dim=1)
 
-                ious = compute_iou_per_class(preds, masks, NUM_CLASSES)
-
-                for cls in range(NUM_CLASSES):
-                    if not (ious[cls] != ious[cls]):
-                        total_iou_per_class[cls] += ious[cls]
-                        counts_per_class[cls] += 1
+                intersections, unions = compute_iou_per_class(preds, masks, NUM_CLASSES)
+                total_intersections += intersections
+                total_unions += unions
 
                 test_loss += loss.item()
 
         test_loss /= len(test_loader)
 
         mean_iou_per_class = []
+        present_ious = []
         for cls in range(NUM_CLASSES):
-            if counts_per_class[cls] > 0:
-                mean_iou_per_class.append(
-                    total_iou_per_class[cls] / counts_per_class[cls]
-                )
+            union = total_unions[cls].item()
+            if union > 0:
+                iou = (total_intersections[cls] / total_unions[cls]).item()
+                mean_iou_per_class.append(iou)
+                present_ious.append(iou)
             else:
                 mean_iou_per_class.append(float("nan"))
 
-        mean_iou = sum(mean_iou_per_class) / NUM_CLASSES
+        mean_iou = sum(present_ious) / len(present_ious) if present_ious else float("nan")
 
         scheduler.step()
         current_lr = optimizer.param_groups[0]["lr"]

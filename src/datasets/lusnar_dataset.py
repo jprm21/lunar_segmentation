@@ -3,6 +3,7 @@ from PIL import Image
 from pathlib import Path
 import random
 import torch
+import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 from torchvision.transforms import InterpolationMode
 
@@ -65,6 +66,7 @@ class LuSNARDataset(Dataset):
         use_class_aware_crop=False,
         crop_size=256,
         target_classes=(1, 2),
+        crop_target_probs=None,
         max_crop_tries=10,
         augmentation_profile="default",
     ):
@@ -81,6 +83,15 @@ class LuSNARDataset(Dataset):
         self.crop_size = crop_size
         self.target_classes = target_classes
         self.max_crop_tries = max_crop_tries
+        self.crop_target_probs = crop_target_probs
+        if self.crop_target_probs:
+            total_prob = sum(self.crop_target_probs.values())
+            if total_prob <= 0:
+                raise ValueError("crop_target_probs must sum to a positive value")
+            self.crop_target_probs = {
+                cls_id: prob / total_prob
+                for cls_id, prob in self.crop_target_probs.items()
+            }
         self.augmentation_profile = augmentation_profile
 
         self.samples = self._collect_samples()
@@ -137,11 +148,19 @@ class LuSNARDataset(Dataset):
         mask = rgb_to_class(mask_rgb)
 
         if self.use_class_aware_crop:
+            mask = torch.as_tensor(mask, dtype=torch.long)
+
+            target_classes = self.target_classes
+            if self.crop_target_probs:
+                classes = list(self.crop_target_probs.keys())
+                probs = list(self.crop_target_probs.values())
+                target_classes = (random.choices(classes, weights=probs, k=1)[0],)
+
             image, mask = random_crop_with_class(
                 image=image,
-                mask=torch.as_tensor(mask, dtype=torch.long),
+                mask=mask,
                 crop_size=self.crop_size,
-                target_classes=self.target_classes,
+                target_classes=target_classes,
                 max_tries=self.max_crop_tries,
             )
         else:
@@ -154,10 +173,32 @@ class LuSNARDataset(Dataset):
         if self.augmentation_profile != "rock_light":
             return image, mask
 
-        # Lighter profile: no RandomResizedCrop zoom to avoid extra resampling artifacts.
-        if random.random() < 0.5:
-            image = TF.hflip(image)
-            mask = TF.hflip(mask)
+        if random.random() < 0.3:
+            i, j, h, w = T.RandomResizedCrop.get_params(
+                image,
+                scale=(0.9, 1.0),
+                ratio=(0.95, 1.05),
+            )
+            output_size = [image.shape[-2], image.shape[-1]]
+            image = TF.resized_crop(
+                image,
+                top=i,
+                left=j,
+                height=h,
+                width=w,
+                size=output_size,
+                interpolation=InterpolationMode.BILINEAR,
+                antialias=True,
+            )
+            mask = TF.resized_crop(
+                mask.unsqueeze(0).float(),
+                top=i,
+                left=j,
+                height=h,
+                width=w,
+                size=output_size,
+                interpolation=InterpolationMode.NEAREST,
+            ).squeeze(0).long()
 
         if random.random() < 0.3:
             angle = random.uniform(-10.0, 10.0)
