@@ -212,7 +212,7 @@ class LuSNARDataset(Dataset):
                 mask.unsqueeze(0).float(),
                 angle=angle,
                 interpolation=InterpolationMode.NEAREST,
-                fill=0,
+                fill=255,
             ).squeeze(0).long()
 
         if random.random() < 0.2:

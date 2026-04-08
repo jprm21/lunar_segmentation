@@ -120,9 +120,13 @@ def save_augmentation_preview(dataset, output_dir, count):
     print(f"[INFO] Saved {total} augmentation previews to: {output_dir}")
 
 
-def compute_iou_per_class(pred, target, num_classes):
+def compute_iou_per_class(pred, target, num_classes, ignore_index=255):
     intersections = torch.zeros(num_classes, dtype=torch.float64, device=pred.device)
     unions = torch.zeros(num_classes, dtype=torch.float64, device=pred.device)
+
+    valid_mask = target != ignore_index
+    pred = pred[valid_mask]
+    target = target[valid_mask]
 
     for cls in range(num_classes):
         pred_inds = pred == cls
