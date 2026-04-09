@@ -22,7 +22,7 @@ NUM_CLASSES = 5
 BATCH_SIZE = 4
 EPOCHS = 40
 LR = 3e-4
-IMAGE_SIZE = 256
+IMAGE_SIZE = 384
 WEIGHT_DECAY = 1e-4
 
 TRAIN_SCENES = [1, 2, 4, 6, 8, 9]
@@ -144,7 +144,7 @@ def main():
     crop_scale = max(0.5, min(args.crop_scale, 1.0))
 
     print("Using device:", DEVICE)
-    print("version 256, crop corregido imbalanced al 70%")
+    print("version 384, crop corregido imbalanced al 70% 0.3")
     print(f"[INFO] Active augmentation profile: {args.augmentation_profile}")
     print(f"[INFO] Crop scale: {crop_scale:.2f}")
     print(f"[INFO] Dual crop target probs -> crater: {1.0 - args.rock_crop_prob:.2f}, rock: {args.rock_crop_prob:.2f}")
