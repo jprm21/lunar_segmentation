@@ -12,3 +12,9 @@ docker run -it --rm \
   -v /mnt/vol_NFS_TFG/lunar_segmentation:/workspace/lunar-segmentation \
   -w /workspace/lunar-segmentation \
   lunar-sec:lunar
+  
+  
+python scripts/train_cross_scene.py --augmentation-profile rock_light --save-aug-preview-dir ./artifacts/ --rock-crop-prob 0.3
+
+for i in 0 100 800 1000; do python scripts/export_multirama.py --model-path /workspace/lunar-segmentation/models_arqui_codex/best_model_cambio_comb_loss_codex.pth --input-size 255 --image-index $i; done
+
