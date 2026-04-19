@@ -127,37 +127,69 @@ def export_to_onnx(model: torch.nn.Module) -> None:
 
 
 # -----------------------------
-# Paso 3: ONNX -> SavedModel con tf2onnx
+# Paso 3: ONNX -> SavedModel con onnx y tf
 # -----------------------------
 def convert_onnx_to_savedmodel() -> None:
-    print("[3/5] Convirtiendo ONNX -> SavedModel con tf2onnx...")
+    print("[3/5] Convirtiendo ONNX -> TF Function -> SavedModel...")
 
     TF_PATH.mkdir(parents=True, exist_ok=True)
 
-    cmd = [
-        sys.executable, "-m", "tf2onnx.convert",
-        "--onnx",   str(ONNX_SIM_PATH),
-        "--output", str(TF_PATH),
-        "--opset",  "11",
-        "--tag",    "serve",
-    ]
+    # Usamos onnx-tf via import directo si está disponible,
+    # si no, usamos el wrapper manual con tf.
+    # Estrategia: cargar ONNX y reconstruir como TF SavedModel
+    # usando onnxruntime + tf para inferencia delegada.
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Primero intentamos con onnx-tf directamente (puede funcionar
+    # si tensorflow-probability está instalado)
+    try:
+        from onnx_tf.backend import prepare as onnx_tf_prepare
+        onnx_model = onnx.load(str(ONNX_SIM_PATH))
+        tf_rep = onnx_tf_prepare(onnx_model)
+        tf_rep.export_graph(str(TF_PATH))
+        print(f"  ✓ SavedModel guardado en: {TF_PATH} (via onnx-tf)")
+        return
+    except Exception as e:
+        print(f"  ⚠ onnx-tf no disponible ({type(e).__name__}), usando onnxruntime wrapper...")
 
-    if result.returncode != 0:
-        print("  ✗ tf2onnx falló:")
-        print(result.stderr[-3000:])
-        raise RuntimeError("tf2onnx falló")
+    # Alternativa: crear SavedModel que delega a onnxruntime
+    try:
+        import onnxruntime as ort
 
-    # Verificar que se generó el SavedModel
-    pb_candidates = list(TF_PATH.rglob("saved_model.pb"))
-    if not pb_candidates:
-        raise FileNotFoundError(
-            f"No se encontró saved_model.pb en {TF_PATH}\n"
-            f"Contenido: {list(TF_PATH.iterdir())}"
+        onnx_path_str = str(ONNX_SIM_PATH)
+        sess = ort.InferenceSession(onnx_path_str, providers=["CPUExecutionProvider"])
+        input_name  = sess.get_inputs()[0].name
+        output_name = sess.get_outputs()[0].name
+
+        @tf.function(input_signature=[
+            tf.TensorSpec(shape=[1, 3, IMAGE_SIZE, IMAGE_SIZE], dtype=tf.float32, name="input")
+        ])
+        def serving_fn(input_tensor):
+            # Llamada a onnxruntime desde dentro de tf.function via py_function
+            def _run(x):
+                result = sess.run(
+                    [output_name],
+                    {input_name: x.numpy()}
+                )[0]
+                return result
+
+            output = tf.py_function(_run, [input_tensor], tf.float32)
+            output.set_shape([1, NUM_CLASSES, IMAGE_SIZE, IMAGE_SIZE])
+            return output
+
+        tf.saved_model.save(
+            obj=serving_fn,
+            export_dir=str(TF_PATH),
+            signatures={"serving_default": serving_fn},
         )
+        print(f"  ✓ SavedModel (onnxruntime wrapper) guardado en: {TF_PATH}")
 
-    print(f"  ✓ SavedModel guardado en: {pb_candidates[0].parent}")
+    except ImportError:
+        raise RuntimeError(
+            "Ni onnx-tf ni onnxruntime están disponibles.\n"
+            "Instalá uno de los dos:\n"
+            "  pip install onnxruntime\n"
+            "  pip install onnx-tf tensorflow-probability"
+        )
 
 
 # -----------------------------
