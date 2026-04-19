@@ -156,30 +156,44 @@ def convert_onnx_to_savedmodel() -> None:
         import onnxruntime as ort
 
         onnx_path_str = str(ONNX_SIM_PATH)
-        sess = ort.InferenceSession(onnx_path_str, providers=["CPUExecutionProvider"])
+        sess = ort.InferenceSession(
+            onnx_path_str, providers=["CPUExecutionProvider"]
+        )
         input_name  = sess.get_inputs()[0].name
         output_name = sess.get_outputs()[0].name
 
-        @tf.function(input_signature=[
-            tf.TensorSpec(shape=[1, 3, IMAGE_SIZE, IMAGE_SIZE], dtype=tf.float32, name="input")
-        ])
-        def serving_fn(input_tensor):
-            # Llamada a onnxruntime desde dentro de tf.function via py_function
-            def _run(x):
-                result = sess.run(
-                    [output_name],
-                    {input_name: x.numpy()}
-                )[0]
-                return result
+        class OnnxWrapper(tf.Module):
+            def __init__(self, session, in_name, out_name):
+                super().__init__()
+                self._sess    = session
+                self._in_name  = in_name
+                self._out_name = out_name
 
-            output = tf.py_function(_run, [input_tensor], tf.float32)
-            output.set_shape([1, NUM_CLASSES, IMAGE_SIZE, IMAGE_SIZE])
-            return output
+            @tf.function(input_signature=[
+                tf.TensorSpec(
+                    shape=[1, 3, IMAGE_SIZE, IMAGE_SIZE],
+                    dtype=tf.float32,
+                    name="input",
+                )
+            ])
+            def __call__(self, input_tensor):
+                def _run(x):
+                    result = self._sess.run(
+                        [self._out_name],
+                        {self._in_name: x.numpy()},
+                    )[0]
+                    return result.astype(np.float32)
+
+                output = tf.py_function(_run, [input_tensor], tf.float32)
+                output.set_shape([1, NUM_CLASSES, IMAGE_SIZE, IMAGE_SIZE])
+                return {"output": output}
+
+        wrapper = OnnxWrapper(sess, input_name, output_name)
 
         tf.saved_model.save(
-            obj=serving_fn,
+            wrapper,
             export_dir=str(TF_PATH),
-            signatures={"serving_default": serving_fn},
+            signatures={"serving_default": wrapper.__call__},
         )
         print(f"  ✓ SavedModel (onnxruntime wrapper) guardado en: {TF_PATH}")
 
