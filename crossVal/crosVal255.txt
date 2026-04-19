@@ -1,0 +1,1084 @@
+root@8a7a445df62d:/workspace/lunar-segmentation# python scripts/train_cross_scene.py --augmentation-profile rock_light  --rock-crop-prob 0.3
+Using device: cuda
+cross validation 3 6 9
+version 256, esto es arqui base con pipeline nuevo, aug, 0.7
+[INFO] Active augmentation profile: rock_light
+[INFO] Crop scale: 0.85
+[INFO] Dual crop target probs -> crater: 0.70, rock: 0.30
+[INFO] Found 8587 samples
+[INFO] Found 4419 samples
+Downloading: "https://download.pytorch.org/models/mobilenet_v2-7ebf99e0.pth" to /root/.cache/torch/hub/checkpoints/mobilenet_v2-7ebf99e0.pth
+100%|████████████████████████████████████████████████████████| 13.6M/13.6M [00:00<00:00, 16.1MB/s]
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:40<00:00,  3.70it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:53<00:00,  3.76it/s]
+
+Epoch [1/40]
+Train Loss: 0.3791
+Test  Loss: 0.6726
+Test  mIoU: 0.6840
+LR: 0.000300
+IoU Regolith: 0.9265
+IoU Crater: 0.3305
+IoU Rock: 0.4494
+IoU Mountain: 0.7329
+IoU Sky: 0.9808
+✅ Best model saved at epoch 1 with mIoU: 0.6840
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:49<00:00,  3.64it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:40<00:00,  3.94it/s]
+
+Epoch [2/40]
+Train Loss: 0.2079
+Test  Loss: 0.7453
+Test  mIoU: 0.7099
+LR: 0.000298
+IoU Regolith: 0.9441
+IoU Crater: 0.3428
+IoU Rock: 0.5368
+IoU Mountain: 0.7417
+IoU Sky: 0.9843
+✅ Best model saved at epoch 2 with mIoU: 0.7099
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:33<00:00,  3.75it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:32<00:00,  4.06it/s]
+
+Epoch [3/40]
+Train Loss: 0.1728
+Test  Loss: 0.7346
+Test  mIoU: 0.7437
+LR: 0.000296
+IoU Regolith: 0.9570
+IoU Crater: 0.4671
+IoU Rock: 0.5563
+IoU Mountain: 0.7570
+IoU Sky: 0.9814
+✅ Best model saved at epoch 3 with mIoU: 0.7437
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:42<00:00,  3.69it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:19<00:00,  4.27it/s]
+
+Epoch [4/40]
+Train Loss: 0.1468
+Test  Loss: 1.1428
+Test  mIoU: 0.6431
+LR: 0.000293
+IoU Regolith: 0.9199
+IoU Crater: 0.4004
+IoU Rock: 0.3408
+IoU Mountain: 0.5748
+IoU Sky: 0.9797
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:30<00:00,  3.76it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [5/40]
+Train Loss: 0.1412
+Test  Loss: 0.9091
+Test  mIoU: 0.7545
+LR: 0.000289
+IoU Regolith: 0.9577
+IoU Crater: 0.4621
+IoU Rock: 0.5893
+IoU Mountain: 0.7861
+IoU Sky: 0.9774
+✅ Best model saved at epoch 5 with mIoU: 0.7545
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:29<00:00,  3.77it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [6/40]
+Train Loss: 0.1276
+Test  Loss: 1.0372
+Test  mIoU: 0.7533
+LR: 0.000284
+IoU Regolith: 0.9625
+IoU Crater: 0.4433
+IoU Rock: 0.6013
+IoU Mountain: 0.7738
+IoU Sky: 0.9856
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:24<00:00,  3.80it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.36it/s]
+
+Epoch [7/40]
+Train Loss: 0.1188
+Test  Loss: 1.0872
+Test  mIoU: 0.7716
+LR: 0.000278
+IoU Regolith: 0.9649
+IoU Crater: 0.4943
+IoU Rock: 0.6235
+IoU Mountain: 0.7900
+IoU Sky: 0.9855
+✅ Best model saved at epoch 7 with mIoU: 0.7716
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:29<00:00,  3.77it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:16<00:00,  4.31it/s]
+
+Epoch [8/40]
+Train Loss: 0.1180
+Test  Loss: 1.0046
+Test  mIoU: 0.7634
+LR: 0.000271
+IoU Regolith: 0.9622
+IoU Crater: 0.4742
+IoU Rock: 0.5970
+IoU Mountain: 0.7963
+IoU Sky: 0.9872
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:20<00:00,  3.83it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.37it/s]
+
+Epoch [9/40]
+Train Loss: 0.1055
+Test  Loss: 1.0874
+Test  mIoU: 0.7708
+LR: 0.000264
+IoU Regolith: 0.9659
+IoU Crater: 0.4808
+IoU Rock: 0.6254
+IoU Mountain: 0.7951
+IoU Sky: 0.9870
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:21<00:00,  3.82it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:10<00:00,  4.40it/s]
+
+Epoch [10/40]
+Train Loss: 0.1123
+Test  Loss: 1.2375
+Test  mIoU: 0.7604
+LR: 0.000256
+IoU Regolith: 0.9644
+IoU Crater: 0.4756
+IoU Rock: 0.5927
+IoU Mountain: 0.7825
+IoU Sky: 0.9865
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:15<00:00,  3.87it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [11/40]
+Train Loss: 0.0995
+Test  Loss: 1.2356
+Test  mIoU: 0.7604
+LR: 0.000247
+IoU Regolith: 0.9645
+IoU Crater: 0.4921
+IoU Rock: 0.5877
+IoU Mountain: 0.7718
+IoU Sky: 0.9858
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:06<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [12/40]
+Train Loss: 0.0959
+Test  Loss: 1.2127
+Test  mIoU: 0.7624
+LR: 0.000238
+IoU Regolith: 0.9666
+IoU Crater: 0.4611
+IoU Rock: 0.6201
+IoU Mountain: 0.7760
+IoU Sky: 0.9881
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:01<00:00,  3.97it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [13/40]
+Train Loss: 0.0932
+Test  Loss: 1.2656
+Test  mIoU: 0.7707
+LR: 0.000228
+IoU Regolith: 0.9664
+IoU Crater: 0.4896
+IoU Rock: 0.6184
+IoU Mountain: 0.7924
+IoU Sky: 0.9865
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:01<00:00,  3.97it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:19<00:00,  4.25it/s]
+
+Epoch [14/40]
+Train Loss: 0.0913
+Test  Loss: 1.2608
+Test  mIoU: 0.7702
+LR: 0.000218
+IoU Regolith: 0.9654
+IoU Crater: 0.4925
+IoU Rock: 0.6088
+IoU Mountain: 0.7980
+IoU Sky: 0.9863
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:01<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.37it/s]
+
+Epoch [15/40]
+Train Loss: 0.0884
+Test  Loss: 1.1362
+Test  mIoU: 0.7755
+LR: 0.000207
+IoU Regolith: 0.9641
+IoU Crater: 0.5170
+IoU Rock: 0.6123
+IoU Mountain: 0.7983
+IoU Sky: 0.9858
+✅ Best model saved at epoch 15 with mIoU: 0.7755
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:03<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [16/40]
+Train Loss: 0.0869
+Test  Loss: 1.3702
+Test  mIoU: 0.7788
+LR: 0.000196
+IoU Regolith: 0.9679
+IoU Crater: 0.4959
+IoU Rock: 0.6422
+IoU Mountain: 0.8017
+IoU Sky: 0.9865
+✅ Best model saved at epoch 16 with mIoU: 0.7788
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:02<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.36it/s]
+
+Epoch [17/40]
+Train Loss: 0.0870
+Test  Loss: 1.3892
+Test  mIoU: 0.7769
+LR: 0.000185
+IoU Regolith: 0.9684
+IoU Crater: 0.5002
+IoU Rock: 0.6329
+IoU Mountain: 0.7957
+IoU Sky: 0.9872
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:02<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.38it/s]
+
+Epoch [18/40]
+Train Loss: 0.0810
+Test  Loss: 1.4805
+Test  mIoU: 0.7753
+LR: 0.000173
+IoU Regolith: 0.9689
+IoU Crater: 0.5083
+IoU Rock: 0.6238
+IoU Mountain: 0.7889
+IoU Sky: 0.9869
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:00<00:00,  3.97it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [19/40]
+Train Loss: 0.0811
+Test  Loss: 1.6063
+Test  mIoU: 0.7665
+LR: 0.000162
+IoU Regolith: 0.9697
+IoU Crater: 0.4987
+IoU Rock: 0.6189
+IoU Mountain: 0.7584
+IoU Sky: 0.9867
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:00<00:00,  3.98it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.40it/s]
+
+Epoch [20/40]
+Train Loss: 0.0791
+Test  Loss: 1.6498
+Test  mIoU: 0.7763
+LR: 0.000150
+IoU Regolith: 0.9704
+IoU Crater: 0.5062
+IoU Rock: 0.6309
+IoU Mountain: 0.7868
+IoU Sky: 0.9871
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:01<00:00,  3.97it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.38it/s]
+
+Epoch [21/40]
+Train Loss: 0.0762
+Test  Loss: 1.6550
+Test  mIoU: 0.7742
+LR: 0.000138
+IoU Regolith: 0.9699
+IoU Crater: 0.4935
+IoU Rock: 0.6353
+IoU Mountain: 0.7855
+IoU Sky: 0.9870
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:05<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.40it/s]
+
+Epoch [22/40]
+Train Loss: 0.0755
+Test  Loss: 1.5929
+Test  mIoU: 0.7809
+LR: 0.000127
+IoU Regolith: 0.9701
+IoU Crater: 0.4954
+IoU Rock: 0.6481
+IoU Mountain: 0.8034
+IoU Sky: 0.9875
+✅ Best model saved at epoch 22 with mIoU: 0.7809
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:06<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.36it/s]
+
+Epoch [23/40]
+Train Loss: 0.0745
+Test  Loss: 1.6447
+Test  mIoU: 0.7828
+LR: 0.000115
+IoU Regolith: 0.9707
+IoU Crater: 0.5078
+IoU Rock: 0.6457
+IoU Mountain: 0.8028
+IoU Sky: 0.9872
+✅ Best model saved at epoch 23 with mIoU: 0.7828
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:27<00:00,  3.78it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.37it/s]
+
+Epoch [24/40]
+Train Loss: 0.0722
+Test  Loss: 1.6694
+Test  mIoU: 0.7808
+LR: 0.000104
+IoU Regolith: 0.9697
+IoU Crater: 0.4987
+IoU Rock: 0.6473
+IoU Mountain: 0.8014
+IoU Sky: 0.9871
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [08:56<00:00,  4.00it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.38it/s]
+
+Epoch [25/40]
+Train Loss: 0.0704
+Test  Loss: 1.7191
+Test  mIoU: 0.7780
+LR: 0.000093
+IoU Regolith: 0.9703
+IoU Crater: 0.4900
+IoU Rock: 0.6478
+IoU Mountain: 0.7951
+IoU Sky: 0.9868
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [08:59<00:00,  3.98it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [26/40]
+Train Loss: 0.0706
+Test  Loss: 1.8637
+Test  mIoU: 0.7757
+LR: 0.000082
+IoU Regolith: 0.9704
+IoU Crater: 0.4828
+IoU Rock: 0.6437
+IoU Mountain: 0.7947
+IoU Sky: 0.9869
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:02<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.37it/s]
+
+Epoch [27/40]
+Train Loss: 0.0692
+Test  Loss: 1.8594
+Test  mIoU: 0.7805
+LR: 0.000072
+IoU Regolith: 0.9716
+IoU Crater: 0.4887
+IoU Rock: 0.6503
+IoU Mountain: 0.8045
+IoU Sky: 0.9874
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:01<00:00,  3.97it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.40it/s]
+
+Epoch [28/40]
+Train Loss: 0.0677
+Test  Loss: 1.9761
+Test  mIoU: 0.7750
+LR: 0.000062
+IoU Regolith: 0.9715
+IoU Crater: 0.4903
+IoU Rock: 0.6395
+IoU Mountain: 0.7871
+IoU Sky: 0.9864
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:12<00:00,  3.88it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.40it/s]
+
+Epoch [29/40]
+Train Loss: 0.0671
+Test  Loss: 1.9897
+Test  mIoU: 0.7766
+LR: 0.000053
+IoU Regolith: 0.9719
+IoU Crater: 0.4843
+IoU Rock: 0.6440
+IoU Mountain: 0.7955
+IoU Sky: 0.9873
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:06<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.37it/s]
+
+Epoch [30/40]
+Train Loss: 0.0662
+Test  Loss: 1.9648
+Test  mIoU: 0.7794
+LR: 0.000044
+IoU Regolith: 0.9717
+IoU Crater: 0.4928
+IoU Rock: 0.6514
+IoU Mountain: 0.7943
+IoU Sky: 0.9868
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:03<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:10<00:00,  4.41it/s]
+
+Epoch [31/40]
+Train Loss: 0.0655
+Test  Loss: 2.1693
+Test  mIoU: 0.7755
+LR: 0.000036
+IoU Regolith: 0.9717
+IoU Crater: 0.4895
+IoU Rock: 0.6335
+IoU Mountain: 0.7959
+IoU Sky: 0.9871
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:02<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.38it/s]
+
+Epoch [32/40]
+Train Loss: 0.0646
+Test  Loss: 2.1013
+Test  mIoU: 0.7746
+LR: 0.000029
+IoU Regolith: 0.9713
+IoU Crater: 0.4888
+IoU Rock: 0.6323
+IoU Mountain: 0.7938
+IoU Sky: 0.9869
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:10<00:00,  3.90it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.37it/s]
+
+Epoch [33/40]
+Train Loss: 0.0643
+Test  Loss: 2.0855
+Test  mIoU: 0.7781
+LR: 0.000022
+IoU Regolith: 0.9718
+IoU Crater: 0.4938
+IoU Rock: 0.6435
+IoU Mountain: 0.7945
+IoU Sky: 0.9869
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:05<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:15<00:00,  4.32it/s]
+
+Epoch [34/40]
+Train Loss: 0.0636
+Test  Loss: 1.9807
+Test  mIoU: 0.7789
+LR: 0.000016
+IoU Regolith: 0.9715
+IoU Crater: 0.4961
+IoU Rock: 0.6420
+IoU Mountain: 0.7977
+IoU Sky: 0.9871
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:03<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:17<00:00,  4.30it/s]
+
+Epoch [35/40]
+Train Loss: 0.0630
+Test  Loss: 1.9938
+Test  mIoU: 0.7786
+LR: 0.000011
+IoU Regolith: 0.9716
+IoU Crater: 0.4932
+IoU Rock: 0.6441
+IoU Mountain: 0.7971
+IoU Sky: 0.9871
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:18<00:00,  3.84it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:12<00:00,  4.38it/s]
+
+Epoch [36/40]
+Train Loss: 0.0629
+Test  Loss: 2.0542
+Test  mIoU: 0.7781
+LR: 0.000007
+IoU Regolith: 0.9715
+IoU Crater: 0.4935
+IoU Rock: 0.6399
+IoU Mountain: 0.7983
+IoU Sky: 0.9875
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:06<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.36it/s]
+
+Epoch [37/40]
+Train Loss: 0.0631
+Test  Loss: 2.0689
+Test  mIoU: 0.7775
+LR: 0.000004
+IoU Regolith: 0.9715
+IoU Crater: 0.4945
+IoU Rock: 0.6398
+IoU Mountain: 0.7948
+IoU Sky: 0.9872
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:02<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:13<00:00,  4.35it/s]
+
+Epoch [38/40]
+Train Loss: 0.0624
+Test  Loss: 2.0441
+Test  mIoU: 0.7787
+LR: 0.000002
+IoU Regolith: 0.9719
+IoU Crater: 0.4955
+IoU Rock: 0.6457
+IoU Mountain: 0.7934
+IoU Sky: 0.9869
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:08<00:00,  3.91it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [39/40]
+Train Loss: 0.0627
+Test  Loss: 2.1107
+Test  mIoU: 0.7768
+LR: 0.000000
+IoU Regolith: 0.9718
+IoU Crater: 0.4922
+IoU Rock: 0.6418
+IoU Mountain: 0.7912
+IoU Sky: 0.9868
+Training: 100%|███████████████████████████████████████████████| 2147/2147 [09:08<00:00,  3.91it/s]
+Testing: 100%|████████████████████████████████████████████████| 1105/1105 [04:11<00:00,  4.39it/s]
+
+Epoch [40/40]
+Train Loss: 0.0627
+Test  Loss: 2.0985
+Test  mIoU: 0.7777
+LR: 0.000000
+IoU Regolith: 0.9716
+IoU Crater: 0.4940
+IoU Rock: 0.6413
+IoU Mountain: 0.7948
+IoU Sky: 0.9869
+
+
+
+//////////////////////////////////////////////////////////////////
+root@8a7a445df62d:/workspace/lunar-segmentation# python scripts/train_cross_scene.py --augmentation-profile rock_light  --rock-crop-prob 0.3
+Using device: cuda
+cross validation 2 5 8
+version 256, esto es arqui base con pipeline nuevo, aug, 0.7
+[INFO] Active augmentation profile: rock_light
+[INFO] Crop scale: 0.85
+[INFO] Dual crop target probs -> crater: 0.70, rock: 0.30
+[INFO] Found 8459 samples
+[INFO] Found 4547 samples
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:15<00:00,  3.80it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:17<00:00,  4.41it/s]
+
+Epoch [1/40]
+Train Loss: 0.4388
+Test  Loss: 0.3904
+Test  mIoU: 0.7488
+LR: 0.000300
+IoU Regolith: 0.9533
+IoU Crater: 0.5125
+IoU Rock: 0.4734
+IoU Mountain: 0.8163
+IoU Sky: 0.9885
+✅ Best model saved at epoch 1 with mIoU: 0.7488
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:03<00:00,  3.89it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [2/40]
+Train Loss: 0.2454
+Test  Loss: 0.3400
+Test  mIoU: 0.7419
+LR: 0.000298
+IoU Regolith: 0.9500
+IoU Crater: 0.4178
+IoU Rock: 0.5437
+IoU Mountain: 0.8097
+IoU Sky: 0.9883
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:58<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:16<00:00,  4.43it/s]
+
+Epoch [3/40]
+Train Loss: 0.2053
+Test  Loss: 0.4017
+Test  mIoU: 0.8024
+LR: 0.000296
+IoU Regolith: 0.9705
+IoU Crater: 0.6401
+IoU Rock: 0.5591
+IoU Mountain: 0.8514
+IoU Sky: 0.9911
+✅ Best model saved at epoch 3 with mIoU: 0.8024
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.94it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:13<00:00,  4.48it/s]
+
+Epoch [4/40]
+Train Loss: 0.1754
+Test  Loss: 0.3706
+Test  mIoU: 0.8015
+LR: 0.000293
+IoU Regolith: 0.9676
+IoU Crater: 0.6357
+IoU Rock: 0.5448
+IoU Mountain: 0.8667
+IoU Sky: 0.9928
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:58<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:16<00:00,  4.43it/s]
+
+Epoch [5/40]
+Train Loss: 0.1530
+Test  Loss: 0.4474
+Test  mIoU: 0.8135
+LR: 0.000289
+IoU Regolith: 0.9723
+IoU Crater: 0.6352
+IoU Rock: 0.6092
+IoU Mountain: 0.8590
+IoU Sky: 0.9918
+✅ Best model saved at epoch 5 with mIoU: 0.8135
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:14<00:00,  3.81it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:17<00:00,  4.41it/s]
+
+Epoch [6/40]
+Train Loss: 0.1426
+Test  Loss: 0.4246
+Test  mIoU: 0.8144
+LR: 0.000284
+IoU Regolith: 0.9718
+IoU Crater: 0.6532
+IoU Rock: 0.5948
+IoU Mountain: 0.8608
+IoU Sky: 0.9916
+✅ Best model saved at epoch 6 with mIoU: 0.8144
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:03<00:00,  3.89it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:18<00:00,  4.40it/s]
+
+Epoch [7/40]
+Train Loss: 0.1466
+Test  Loss: 0.4636
+Test  mIoU: 0.8294
+LR: 0.000278
+IoU Regolith: 0.9765
+IoU Crater: 0.6882
+IoU Rock: 0.6372
+IoU Mountain: 0.8545
+IoU Sky: 0.9905
+✅ Best model saved at epoch 7 with mIoU: 0.8294
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [8/40]
+Train Loss: 0.1287
+Test  Loss: 0.4762
+Test  mIoU: 0.8142
+LR: 0.000271
+IoU Regolith: 0.9730
+IoU Crater: 0.6436
+IoU Rock: 0.6180
+IoU Mountain: 0.8456
+IoU Sky: 0.9907
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:58<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.46it/s]
+
+Epoch [9/40]
+Train Loss: 0.1222
+Test  Loss: 0.5196
+Test  mIoU: 0.8252
+LR: 0.000264
+IoU Regolith: 0.9753
+IoU Crater: 0.6599
+IoU Rock: 0.6216
+IoU Mountain: 0.8768
+IoU Sky: 0.9926
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:55<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [10/40]
+Train Loss: 0.1165
+Test  Loss: 0.5014
+Test  mIoU: 0.8237
+LR: 0.000256
+IoU Regolith: 0.9748
+IoU Crater: 0.6773
+IoU Rock: 0.6081
+IoU Mountain: 0.8665
+IoU Sky: 0.9916
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:59<00:00,  3.92it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.46it/s]
+
+Epoch [11/40]
+Train Loss: 0.1171
+Test  Loss: 0.6407
+Test  mIoU: 0.8213
+LR: 0.000247
+IoU Regolith: 0.9759
+IoU Crater: 0.6683
+IoU Rock: 0.6143
+IoU Mountain: 0.8568
+IoU Sky: 0.9911
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:55<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [12/40]
+Train Loss: 0.1128
+Test  Loss: 0.6428
+Test  mIoU: 0.8189
+LR: 0.000238
+IoU Regolith: 0.9754
+IoU Crater: 0.6768
+IoU Rock: 0.5977
+IoU Mountain: 0.8529
+IoU Sky: 0.9915
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:54<00:00,  3.96it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [13/40]
+Train Loss: 0.1063
+Test  Loss: 0.6818
+Test  mIoU: 0.8057
+LR: 0.000228
+IoU Regolith: 0.9731
+IoU Crater: 0.6549
+IoU Rock: 0.5992
+IoU Mountain: 0.8085
+IoU Sky: 0.9927
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.94it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.46it/s]
+
+Epoch [14/40]
+Train Loss: 0.1013
+Test  Loss: 0.6239
+Test  mIoU: 0.8366
+LR: 0.000218
+IoU Regolith: 0.9779
+IoU Crater: 0.6877
+IoU Rock: 0.6511
+IoU Mountain: 0.8735
+IoU Sky: 0.9930
+✅ Best model saved at epoch 14 with mIoU: 0.8366
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:56<00:00,  3.94it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [15/40]
+Train Loss: 0.0981
+Test  Loss: 0.7370
+Test  mIoU: 0.8307
+LR: 0.000207
+IoU Regolith: 0.9766
+IoU Crater: 0.6968
+IoU Rock: 0.6157
+IoU Mountain: 0.8718
+IoU Sky: 0.9926
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:00<00:00,  3.91it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:16<00:00,  4.44it/s]
+
+Epoch [16/40]
+Train Loss: 0.0984
+Test  Loss: 0.7323
+Test  mIoU: 0.8324
+LR: 0.000196
+IoU Regolith: 0.9772
+IoU Crater: 0.6898
+IoU Rock: 0.6397
+IoU Mountain: 0.8631
+IoU Sky: 0.9920
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:02<00:00,  3.90it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [17/40]
+Train Loss: 0.0947
+Test  Loss: 0.7504
+Test  mIoU: 0.8374
+LR: 0.000185
+IoU Regolith: 0.9780
+IoU Crater: 0.7050
+IoU Rock: 0.6419
+IoU Mountain: 0.8693
+IoU Sky: 0.9928
+✅ Best model saved at epoch 17 with mIoU: 0.8374
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.94it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:17<00:00,  4.41it/s]
+
+Epoch [18/40]
+Train Loss: 0.0940
+Test  Loss: 0.8036
+Test  mIoU: 0.8339
+LR: 0.000173
+IoU Regolith: 0.9783
+IoU Crater: 0.6940
+IoU Rock: 0.6375
+IoU Mountain: 0.8666
+IoU Sky: 0.9932
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:54<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:16<00:00,  4.43it/s]
+
+Epoch [19/40]
+Train Loss: 0.0884
+Test  Loss: 0.8019
+Test  mIoU: 0.8363
+LR: 0.000162
+IoU Regolith: 0.9784
+IoU Crater: 0.6939
+IoU Rock: 0.6416
+IoU Mountain: 0.8749
+IoU Sky: 0.9928
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:01<00:00,  3.90it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [20/40]
+Train Loss: 0.0868
+Test  Loss: 0.8185
+Test  mIoU: 0.8367
+LR: 0.000150
+IoU Regolith: 0.9783
+IoU Crater: 0.7022
+IoU Rock: 0.6411
+IoU Mountain: 0.8686
+IoU Sky: 0.9934
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:05<00:00,  3.88it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.46it/s]
+
+Epoch [21/40]
+Train Loss: 0.0862
+Test  Loss: 0.7443
+Test  mIoU: 0.8432
+LR: 0.000138
+IoU Regolith: 0.9791
+IoU Crater: 0.7117
+IoU Rock: 0.6556
+IoU Mountain: 0.8768
+IoU Sky: 0.9929
+✅ Best model saved at epoch 21 with mIoU: 0.8432
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.46it/s]
+
+Epoch [22/40]
+Train Loss: 0.0843
+Test  Loss: 0.7779
+Test  mIoU: 0.8416
+LR: 0.000127
+IoU Regolith: 0.9787
+IoU Crater: 0.7073
+IoU Rock: 0.6502
+IoU Mountain: 0.8782
+IoU Sky: 0.9933
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:57<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:13<00:00,  4.48it/s]
+
+Epoch [23/40]
+Train Loss: 0.0828
+Test  Loss: 0.8259
+Test  mIoU: 0.8402
+LR: 0.000115
+IoU Regolith: 0.9789
+IoU Crater: 0.7015
+IoU Rock: 0.6495
+IoU Mountain: 0.8774
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:55<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.47it/s]
+
+Epoch [24/40]
+Train Loss: 0.0801
+Test  Loss: 0.8715
+Test  mIoU: 0.8437
+LR: 0.000104
+IoU Regolith: 0.9799
+IoU Crater: 0.7153
+IoU Rock: 0.6563
+IoU Mountain: 0.8737
+IoU Sky: 0.9933
+✅ Best model saved at epoch 24 with mIoU: 0.8437
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:55<00:00,  3.95it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:14<00:00,  4.46it/s]
+
+Epoch [25/40]
+Train Loss: 0.0791
+Test  Loss: 0.8594
+Test  mIoU: 0.8402
+LR: 0.000093
+IoU Regolith: 0.9791
+IoU Crater: 0.6968
+IoU Rock: 0.6558
+IoU Mountain: 0.8759
+IoU Sky: 0.9934
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:02<00:00,  3.90it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [26/40]
+Train Loss: 0.0790
+Test  Loss: 0.8640
+Test  mIoU: 0.8434
+LR: 0.000082
+IoU Regolith: 0.9797
+IoU Crater: 0.7026
+IoU Rock: 0.6625
+IoU Mountain: 0.8790
+IoU Sky: 0.9934
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:59<00:00,  3.92it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.45it/s]
+
+Epoch [27/40]
+Train Loss: 0.0766
+Test  Loss: 0.8235
+Test  mIoU: 0.8440
+LR: 0.000072
+IoU Regolith: 0.9795
+IoU Crater: 0.7104
+IoU Rock: 0.6574
+IoU Mountain: 0.8791
+IoU Sky: 0.9934
+✅ Best model saved at epoch 27 with mIoU: 0.8440
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:01<00:00,  3.91it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:15<00:00,  4.46it/s]
+
+Epoch [28/40]
+Train Loss: 0.0754
+Test  Loss: 0.9034
+Test  mIoU: 0.8421
+LR: 0.000062
+IoU Regolith: 0.9794
+IoU Crater: 0.7064
+IoU Rock: 0.6528
+IoU Mountain: 0.8782
+IoU Sky: 0.9938
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [08:58<00:00,  3.93it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:16<00:00,  4.43it/s]
+
+Epoch [29/40]
+Train Loss: 0.0744
+Test  Loss: 0.9429
+Test  mIoU: 0.8420
+LR: 0.000053
+IoU Regolith: 0.9795
+IoU Crater: 0.7051
+IoU Rock: 0.6546
+IoU Mountain: 0.8775
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:28<00:00,  3.72it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [05:33<00:00,  3.40it/s]
+
+Epoch [30/40]
+Train Loss: 0.0739
+Test  Loss: 0.9911
+Test  mIoU: 0.8427
+LR: 0.000044
+IoU Regolith: 0.9798
+IoU Crater: 0.7000
+IoU Rock: 0.6609
+IoU Mountain: 0.8789
+IoU Sky: 0.9938
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:54<00:00,  3.56it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:45<00:00,  3.98it/s]
+
+Epoch [31/40]
+Train Loss: 0.0727
+Test  Loss: 0.8315
+Test  mIoU: 0.8457
+LR: 0.000036
+IoU Regolith: 0.9795
+IoU Crater: 0.7168
+IoU Rock: 0.6591
+IoU Mountain: 0.8790
+IoU Sky: 0.9939
+✅ Best model saved at epoch 31 with mIoU: 0.8457
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [10:14<00:00,  3.44it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [05:08<00:00,  3.69it/s]
+
+Epoch [32/40]
+Train Loss: 0.0716
+Test  Loss: 0.9565
+Test  mIoU: 0.8439
+LR: 0.000029
+IoU Regolith: 0.9798
+IoU Crater: 0.7168
+IoU Rock: 0.6543
+IoU Mountain: 0.8747
+IoU Sky: 0.9937
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [10:55<00:00,  3.23it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:53<00:00,  3.87it/s]
+
+Epoch [33/40]
+Train Loss: 0.0722
+Test  Loss: 0.9437
+Test  mIoU: 0.8430
+LR: 0.000022
+IoU Regolith: 0.9797
+IoU Crater: 0.7053
+IoU Rock: 0.6609
+IoU Mountain: 0.8755
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [10:55<00:00,  3.23it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [05:08<00:00,  3.68it/s]
+
+Epoch [34/40]
+Train Loss: 0.0712
+Test  Loss: 0.9797
+Test  mIoU: 0.8428
+LR: 0.000016
+IoU Regolith: 0.9797
+IoU Crater: 0.7079
+IoU Rock: 0.6578
+IoU Mountain: 0.8752
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [10:25<00:00,  3.38it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [05:22<00:00,  3.52it/s]
+
+Epoch [35/40]
+Train Loss: 0.0707
+Test  Loss: 0.9521
+Test  mIoU: 0.8422
+LR: 0.000011
+IoU Regolith: 0.9796
+IoU Crater: 0.7060
+IoU Rock: 0.6563
+IoU Mountain: 0.8753
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:44<00:00,  3.62it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:23<00:00,  4.32it/s]
+
+Epoch [36/40]
+Train Loss: 0.0705
+Test  Loss: 0.9760
+Test  mIoU: 0.8430
+LR: 0.000007
+IoU Regolith: 0.9797
+IoU Crater: 0.7056
+IoU Rock: 0.6583
+IoU Mountain: 0.8777
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:29<00:00,  3.71it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:21<00:00,  4.35it/s]
+
+Epoch [37/40]
+Train Loss: 0.0700
+Test  Loss: 0.9805
+Test  mIoU: 0.8421
+LR: 0.000004
+IoU Regolith: 0.9797
+IoU Crater: 0.7006
+IoU Rock: 0.6598
+IoU Mountain: 0.8768
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:45<00:00,  3.61it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:30<00:00,  4.20it/s]
+
+Epoch [38/40]
+Train Loss: 0.0690
+Test  Loss: 0.9486
+Test  mIoU: 0.8426
+LR: 0.000002
+IoU Regolith: 0.9799
+IoU Crater: 0.7040
+IoU Rock: 0.6617
+IoU Mountain: 0.8739
+IoU Sky: 0.9934
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [10:12<00:00,  3.45it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [05:03<00:00,  3.75it/s]
+
+Epoch [39/40]
+Train Loss: 0.0693
+Test  Loss: 0.9822
+Test  mIoU: 0.8430
+LR: 0.000000
+IoU Regolith: 0.9799
+IoU Crater: 0.7068
+IoU Rock: 0.6596
+IoU Mountain: 0.8753
+IoU Sky: 0.9935
+Training: 100%|███████████████████████████████████████████████| 2115/2115 [09:35<00:00,  3.67it/s]
+Testing: 100%|████████████████████████████████████████████████| 1137/1137 [04:26<00:00,  4.27it/s]
+
+Epoch [40/40]
+Train Loss: 0.0697
+Test  Loss: 0.9616
+Test  mIoU: 0.8426
+LR: 0.000000
+IoU Regolith: 0.9799
+IoU Crater: 0.6971
+IoU Rock: 0.6656
+IoU Mountain: 0.8766
+IoU Sky: 0.9935
