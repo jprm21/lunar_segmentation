@@ -1,7 +1,6 @@
 """
 conversion.py
-Pipeline: PyTorch -> ONNX -> TFLite INT8
-Usando onnx2tf en lugar de onnx-tf para evitar dependencias problemáticas.
+Pipeline: PyTorch -> ONNX -> SavedModel (tf2onnx) -> TFLite INT8
 """
 
 import subprocess
@@ -42,21 +41,18 @@ STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 # Índices: 0=regolith, 1=crater, 2=rock, 3=mountain, 4=sky
 MASK_COLOR_MAP = {
-    0: (187, 70, 156),  # regolith
-    1: (120, 0, 200),  # crater
-    2: (232, 250, 80),  # rock 
-    3: (173, 69, 31),  # mountain 
-    4: (34, 201, 248),  # sky
+    0: (187,  70, 156),  # regolith -> morado rosado
+    1: (120,   0, 200),  # crater   -> morado
+    2: (232, 250,  80),  # rock     -> amarillo
+    3: (173,  69,  31),  # mountain -> café
+    4: ( 34, 201, 248),  # sky      -> celeste
 }
-
-CLASS_NAMES = ["Regolith", "Crater", "Rock", "Mountain", "Sky"]
 
 
 # -----------------------------
 # Utilidades
 # -----------------------------
 def normalize_chw(image_chw: np.ndarray) -> np.ndarray:
-    """Normaliza imagen CHW en [0,1] con mean/std de ImageNet."""
     return (image_chw - MEAN[:, None, None]) / STD[:, None, None]
 
 
@@ -81,7 +77,7 @@ def build_val_dataset() -> LuSNARDataset:
 def load_pytorch_model() -> torch.nn.Module:
     print("[1/5] Cargando modelo PyTorch en CPU...")
     if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"No existe el archivo de pesos: {MODEL_PATH}")
+        raise FileNotFoundError(f"No existe: {MODEL_PATH}")
 
     model = UNetMobileNet(num_classes=NUM_CLASSES, pretrained=False)
     state = torch.load(MODEL_PATH, map_location="cpu")
@@ -99,7 +95,6 @@ def export_to_onnx(model: torch.nn.Module) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     dummy = torch.randn(1, 3, IMAGE_SIZE, IMAGE_SIZE)
-
     torch.onnx.export(
         model,
         dummy,
@@ -110,12 +105,11 @@ def export_to_onnx(model: torch.nn.Module) -> None:
         do_constant_folding=True,
     )
 
-    # Verificar
     onnx_model = onnx.load(str(ONNX_PATH))
     onnx.checker.check_model(onnx_model)
     print(f"  ✓ ONNX guardado en: {ONNX_PATH}")
 
-    # Simplificar (reduce operadores redundantes, mejora compatibilidad)
+    # Simplificar
     try:
         from onnxsim import simplify
         simplified, ok = simplify(onnx_model)
@@ -123,96 +117,86 @@ def export_to_onnx(model: torch.nn.Module) -> None:
             onnx.save(simplified, str(ONNX_SIM_PATH))
             print(f"  ✓ ONNX simplificado guardado en: {ONNX_SIM_PATH}")
         else:
-            print("  ⚠ Simplificación falló, usando ONNX original")
-            ONNX_SIM_PATH.write_bytes(ONNX_PATH.read_bytes())
+            print("  ⚠ Simplificación no exitosa, usando ONNX original")
+            import shutil
+            shutil.copy(str(ONNX_PATH), str(ONNX_SIM_PATH))
     except Exception as e:
-        print(f"  ⚠ onnx-simplifier no disponible ({e}), usando ONNX original")
-        ONNX_SIM_PATH.write_bytes(ONNX_PATH.read_bytes())
+        print(f"  ⚠ onnxsim no disponible ({e}), usando ONNX original")
+        import shutil
+        shutil.copy(str(ONNX_PATH), str(ONNX_SIM_PATH))
 
 
 # -----------------------------
-# Paso 3: ONNX -> TFLite INT8 con onnx2tf
+# Paso 3: ONNX -> SavedModel con tf2onnx
 # -----------------------------
-def convert_to_tflite(dataset: LuSNARDataset) -> None:
-    print("[3/5] Generando datos de calibración...")
+def convert_onnx_to_savedmodel() -> None:
+    print("[3/5] Convirtiendo ONNX -> SavedModel con tf2onnx...")
 
-    # Guardamos imágenes de calibración como npz para pasarlas a onnx2tf
-    calib_dir = OUTPUT_DIR / "calibration_data"
-    calib_dir.mkdir(parents=True, exist_ok=True)
-
-    limit = min(CALIBRATION_SAMPLES, len(dataset))
-    for idx in range(limit):
-        image, _ = dataset[idx]
-        image_np = image.numpy().astype(np.float32)
-        image_np = normalize_chw(image_np)
-        # onnx2tf espera NHWC para calibración
-        image_nhwc = np.transpose(image_np, (1, 2, 0))
-        np.save(str(calib_dir / f"calib_{idx:04d}.npy"), image_nhwc)
-
-    print(f"  ✓ {limit} imágenes de calibración guardadas en: {calib_dir}")
-
-    print("[4/5] Convirtiendo ONNX -> TFLite INT8 con onnx2tf...")
+    TF_PATH.mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        "onnx2tf",
-        "-i",    str(ONNX_SIM_PATH),
-        "-o",    str(TF_PATH),
-        "-oiqt",                        # genera INT8 quantized tflite
-        "-cind", "input",               # nombre del tensor de input
-                 str(calib_dir),        # directorio con datos de calibración
-                 "[[[[0.485,0.456,0.406]]]]",  # mean para normalización interna
-                 "[[[[0.229,0.224,0.225]]]]",  # std  para normalización interna
-        "--non_verbose",
+        sys.executable, "-m", "tf2onnx.convert",
+        "--onnx",   str(ONNX_SIM_PATH),
+        "--output", str(TF_PATH),
+        "--opset",  "11",
+        "--tag",    "serve",
     ]
 
-    print(f"  Ejecutando: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print("  ✗ onnx2tf falló con el siguiente error:")
-        print(result.stderr)
-        raise RuntimeError("Conversión onnx2tf falló.")
+        print("  ✗ tf2onnx falló:")
+        print(result.stderr[-3000:])
+        raise RuntimeError("tf2onnx falló")
 
-    # onnx2tf genera el tflite dentro de TF_PATH con nombre automático
-    # buscamos el archivo INT8
-    tflite_candidates = list(TF_PATH.glob("*int8*.tflite"))
-    if not tflite_candidates:
-        tflite_candidates = list(TF_PATH.glob("*.tflite"))
-
-    if not tflite_candidates:
+    # Verificar que se generó el SavedModel
+    pb_candidates = list(TF_PATH.rglob("saved_model.pb"))
+    if not pb_candidates:
         raise FileNotFoundError(
-            f"No se encontró ningún archivo .tflite en {TF_PATH}. "
-            "Revisá la salida de onnx2tf."
+            f"No se encontró saved_model.pb en {TF_PATH}\n"
+            f"Contenido: {list(TF_PATH.iterdir())}"
         )
 
-    # Copiamos al path esperado
-    import shutil
-    shutil.copy(str(tflite_candidates[0]), str(TFLITE_PATH))
-    print(f"  ✓ TFLite INT8 guardado en: {TFLITE_PATH}")
+    print(f"  ✓ SavedModel guardado en: {pb_candidates[0].parent}")
 
 
 # -----------------------------
-# Paso 4 (fallback): Cuantización manual si onnx2tf no genera INT8
+# Paso 4: SavedModel -> TFLite INT8
 # -----------------------------
-def convert_savedmodel_to_tflite_int8(dataset: LuSNARDataset) -> None:
-    """
-    Fallback: usa tf.lite.TFLiteConverter directamente sobre el SavedModel
-    generado por onnx2tf si el flag -oiqt no funcionó.
-    """
-    print("[4b] Fallback: cuantización manual con TFLiteConverter...")
+def convert_to_tflite_int8(dataset: LuSNARDataset) -> None:
+    print("[4/5] Cuantizando SavedModel -> TFLite INT8...")
+
+    # Encontrar el directorio correcto del SavedModel
+    pb_candidates = list(TF_PATH.rglob("saved_model.pb"))
+    if not pb_candidates:
+        raise FileNotFoundError(f"No se encontró saved_model.pb en {TF_PATH}")
+    savedmodel_dir = str(pb_candidates[0].parent)
+
+    # Detectar layout del modelo
+    loaded = tf.saved_model.load(savedmodel_dir)
+    sig_key = list(loaded.signatures.keys())[0]
+    serving_fn = loaded.signatures[sig_key]
+    input_tensor = list(serving_fn.structured_input_signature[1].values())[0]
+    input_shape = [
+        int(d) if (d is not None and d != -1) else -1
+        for d in input_tensor.shape
+    ]
+    print(f"  Input shape detectado: {input_shape}")
+
+    is_nhwc = len(input_shape) == 4 and input_shape[-1] == 3
 
     def representative_dataset_gen():
         limit = min(CALIBRATION_SAMPLES, len(dataset))
         for idx in range(limit):
             image, _ = dataset[idx]
-            image_np = image.numpy().astype(np.float32)
-            image_np = normalize_chw(image_np)
-            # TFLiteConverter espera NHWC
-            image_nhwc = np.transpose(image_np, (1, 2, 0))
-            batch = np.expand_dims(image_nhwc, axis=0)
-            yield [batch]
+            image_np = normalize_chw(image.numpy().astype(np.float32))
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(str(TF_PATH))
+            if is_nhwc:
+                image_np = np.transpose(image_np, (1, 2, 0))
+
+            yield [np.expand_dims(image_np, axis=0).astype(np.float32)]
+
+    converter = tf.lite.TFLiteConverter.from_saved_model(savedmodel_dir)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     converter.representative_dataset = representative_dataset_gen
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
@@ -221,17 +205,17 @@ def convert_savedmodel_to_tflite_int8(dataset: LuSNARDataset) -> None:
 
     tflite_model = converter.convert()
     TFLITE_PATH.write_bytes(tflite_model)
-    print(f"  ✓ TFLite INT8 (fallback) guardado en: {TFLITE_PATH}")
+
+    size_mb = TFLITE_PATH.stat().st_size / 1024 / 1024
+    print(f"  ✓ TFLite INT8 guardado en: {TFLITE_PATH}")
+    print(f"  Tamaño: {size_mb:.1f} MB")
 
 
 # -----------------------------
-# Paso 5: Inferencia y visualizaciones
+# Paso 5: Inferencia y previews
 # -----------------------------
 def run_previews(dataset: LuSNARDataset) -> None:
     print("[5/5] Ejecutando inferencia TFLite INT8 y guardando visualizaciones...")
-
-    if not TFLITE_PATH.exists():
-        raise FileNotFoundError(f"No se encontró el modelo TFLite en: {TFLITE_PATH}")
 
     interpreter = tf.lite.Interpreter(model_path=str(TFLITE_PATH))
     interpreter.allocate_tensors()
@@ -245,27 +229,26 @@ def run_previews(dataset: LuSNARDataset) -> None:
     in_shape  = input_details["shape"].tolist()
     out_shape = output_details["shape"].tolist()
 
-    # Detectar si el modelo espera NHWC o NCHW
     is_nhwc_in  = len(in_shape)  == 4 and in_shape[-1]  == 3
     is_nhwc_out = len(out_shape) == 4 and out_shape[-1] == NUM_CLASSES
 
-    print(f"  Input shape:  {in_shape}  ({'NHWC' if is_nhwc_in  else 'NCHW'})")
-    print(f"  Output shape: {out_shape} ({'NHWC' if is_nhwc_out else 'NCHW'})")
+    print(f"  Input:  {in_shape}  ({'NHWC' if is_nhwc_in  else 'NCHW'})")
+    print(f"  Output: {out_shape} ({'NHWC' if is_nhwc_out else 'NCHW'})")
 
     for idx in range(min(PREVIEW_SAMPLES, len(dataset))):
         image, mask_gt = dataset[idx]
 
-        # Preprocesar
-        image_chw = image.numpy().astype(np.float32)
+        image_chw  = image.numpy().astype(np.float32)
         image_norm = normalize_chw(image_chw)
 
         if is_nhwc_in:
             model_input = np.transpose(image_norm, (1, 2, 0))
-            model_input = np.expand_dims(model_input, axis=0)   # (1,H,W,3)
         else:
-            model_input = np.expand_dims(image_norm, axis=0)    # (1,3,H,W)
+            model_input = image_norm
 
-        # Cuantizar input a INT8
+        model_input = np.expand_dims(model_input, axis=0).astype(np.float32)
+
+        # Cuantizar a INT8
         if in_scale != 0:
             quant_input = np.round(model_input / in_scale + in_zero)
             quant_input = np.clip(quant_input, -128, 127).astype(np.int8)
@@ -277,13 +260,13 @@ def run_previews(dataset: LuSNARDataset) -> None:
         interpreter.invoke()
         pred_raw = interpreter.get_tensor(output_details["index"])
 
-        # Dequantizar output
+        # Dequantizar
         if out_scale != 0:
             pred_float = (pred_raw.astype(np.float32) - out_zero) * out_scale
         else:
             pred_float = pred_raw.astype(np.float32)
 
-        # Obtener máscara de clase (argmax)
+        # Argmax
         if is_nhwc_out:
             pred_mask = np.argmax(pred_float[0], axis=-1).astype(np.uint8)
         else:
@@ -308,15 +291,10 @@ def run_previews(dataset: LuSNARDataset) -> None:
         axs[2].axis("off")
 
         out_file = OUTPUT_DIR / f"segmentation_preview_{idx + 1}.png"
-        fig.suptitle(
-            f"Escena val - muestra {idx + 1} | "
-            f"in_scale={in_scale:.4f} out_scale={out_scale:.4f}",
-            fontsize=9,
-        )
         fig.tight_layout()
         fig.savefig(str(out_file), dpi=150)
         plt.close(fig)
-        print(f"  ✓ Preview {idx + 1}/5 guardado: {out_file}")
+        print(f"  ✓ Preview {idx + 1}/{PREVIEW_SAMPLES}: {out_file}")
 
 
 # -----------------------------
@@ -324,7 +302,7 @@ def run_previews(dataset: LuSNARDataset) -> None:
 # -----------------------------
 def main():
     print("=" * 60)
-    print(" Pipeline: PyTorch -> ONNX -> TFLite INT8")
+    print(" Pipeline: PyTorch -> ONNX -> SavedModel -> TFLite INT8")
     print("=" * 60)
 
     try:
@@ -339,18 +317,19 @@ def main():
         print(f"✗ Paso 2 falló: {e}")
         return
 
+    try:
+        convert_onnx_to_savedmodel()
+    except Exception as e:
+        print(f"✗ Paso 3 falló: {e}")
+        return
+
     val_dataset = build_val_dataset()
 
     try:
-        convert_to_tflite(val_dataset)
+        convert_to_tflite_int8(val_dataset)
     except Exception as e:
-        print(f"  ⚠ onnx2tf falló ({e}), intentando fallback con TFLiteConverter...")
-        try:
-            convert_savedmodel_to_tflite_int8(val_dataset)
-        except Exception as e2:
-            print(f"✗ Fallback también falló: {e2}")
-            print("  El modelo TFLite no pudo generarse.")
-            return
+        print(f"✗ Paso 4 falló: {e}")
+        return
 
     try:
         run_previews(val_dataset)
