@@ -36,7 +36,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Run inference over a scene and export a side-by-side video "
-            "(input | predicted mask | overlay)."
+            "(input | ground truth mask | inference overlay)."
         )
     )
     parser.add_argument("--scene-id", type=int, required=True, help="Scene id (e.g. 3)")
@@ -89,23 +89,49 @@ def infer_mask(model, image_tensor):
     return pred_mask.squeeze(0).cpu().numpy().astype(np.uint8)
 
 
-def build_panel(image_np, pred_mask_np):
+def rgb_to_class(mask_np):
+    class_mask = np.zeros(mask_np.shape[:2], dtype=np.uint8)
+    for rgb, class_id in CLASS_COLORS.items():
+        matches = np.all(mask_np == np.array(rgb, dtype=np.uint8), axis=-1)
+        class_mask[matches] = class_id
+    return class_mask
+
+
+def preprocess_label(label_pil, input_size):
+    label_resized = label_pil.resize((input_size, input_size), resample=Image.NEAREST)
+    label_np = np.array(label_resized, dtype=np.uint8)
+    label_class_np = rgb_to_class(label_np)
+    return colorize_prediction(label_class_np)
+
+
+def build_panel(image_np, gt_color_np, pred_mask_np):
     pred_color = colorize_prediction(pred_mask_np)
     overlay = (0.4 * image_np + 0.6 * pred_color).astype(np.uint8)
 
-    return np.concatenate([image_np, pred_color, overlay], axis=1)
+    return np.concatenate([image_np, gt_color_np, overlay], axis=1)
 
 
-def resolve_scene_images(data_root, scene_id):
+def resolve_scene_pairs(data_root, scene_id):
     scene_color_dir = data_root / f"Moon_{scene_id}" / "image0" / "color"
+    scene_label_dir = data_root / f"Moon_{scene_id}" / "image0" / "label"
+
     if not scene_color_dir.exists():
         raise FileNotFoundError(f"Scene folder not found: {scene_color_dir}")
+    if not scene_label_dir.exists():
+        raise FileNotFoundError(f"Scene label folder not found: {scene_label_dir}")
 
     image_paths = sorted(scene_color_dir.glob("*.png"))
     if not image_paths:
         raise RuntimeError(f"No PNG images found in: {scene_color_dir}")
 
-    return image_paths
+    pairs = []
+    for image_path in image_paths:
+        label_path = scene_label_dir / image_path.name
+        if not label_path.exists():
+            raise FileNotFoundError(f"Missing ground-truth label: {label_path}")
+        pairs.append((image_path, label_path))
+
+    return pairs
 
 
 def main():
@@ -127,13 +153,13 @@ def main():
     model.to(device)
     model.eval()
 
-    image_paths = resolve_scene_images(args.data_root, args.scene_id)
+    scene_pairs = resolve_scene_pairs(args.data_root, args.scene_id)
 
     start = max(0, args.start_index)
-    end = min(start + args.max_frames, len(image_paths))
-    selected_paths = image_paths[start:end]
+    end = min(start + args.max_frames, len(scene_pairs))
+    selected_pairs = scene_pairs[start:end]
 
-    if not selected_paths:
+    if not selected_pairs:
         raise RuntimeError("No images selected. Check --start-index and --max-frames.")
 
     frame_h = args.input_size
@@ -150,28 +176,33 @@ def main():
         raise RuntimeError("Could not open video writer. Check codec support (mp4v).")
 
     print(
-        f"[INFO] Processing {len(selected_paths)} frames "
+        f"[INFO] Processing {len(selected_pairs)} frames "
         f"(scene={args.scene_id}, start={start}, end={end - 1})"
     )
 
-    for i, image_path in enumerate(selected_paths, start=1):
+    for i, (image_path, label_path) in enumerate(selected_pairs, start=1):
         image_pil = Image.open(image_path).convert("RGB")
+        label_pil = Image.open(label_path).convert("RGB")
 
         image_tensor, image_np = preprocess_image(
             image_pil=image_pil,
             input_size=args.input_size,
             device=device,
         )
+        gt_color_np = preprocess_label(
+            label_pil=label_pil,
+            input_size=args.input_size,
+        )
 
         pred_mask_np = infer_mask(model, image_tensor)
-        panel = build_panel(image_np, pred_mask_np)
+        panel = build_panel(image_np, gt_color_np, pred_mask_np)
 
         # cv2 expects BGR
         panel_bgr = cv2.cvtColor(panel, cv2.COLOR_RGB2BGR)
         writer.write(panel_bgr)
 
-        if i % 50 == 0 or i == len(selected_paths):
-            print(f"[INFO] Frame {i}/{len(selected_paths)}")
+        if i % 50 == 0 or i == len(selected_pairs):
+            print(f"[INFO] Frame {i}/{len(selected_pairs)}")
 
     writer.release()
     print(f"[OK] Video exported to: {output_video}")
