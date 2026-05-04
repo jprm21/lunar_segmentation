@@ -22,11 +22,11 @@ NUM_CLASSES = 5
 BATCH_SIZE = 4
 EPOCHS = 40
 LR = 3e-4
-IMAGE_SIZE = 256
+IMAGE_SIZE = 1024
 WEIGHT_DECAY = 1e-4
 
-TRAIN_SCENES = [1, 2, 4, 6, 8, 9]
-TEST_SCENES = [3, 5, 7]
+TRAIN_SCENES = [1, 2, 4, 5, 7, 8]
+TEST_SCENES = [3, 6, 9]
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_ROOT = PROJECT_ROOT / "data"
@@ -144,7 +144,8 @@ def main():
     crop_scale = max(0.5, min(args.crop_scale, 1.0))
 
     print("Using device:", DEVICE)
-    print("version 256, esto es arqui base con pipeline nuevo, aug, 0.3")
+    print("cross validation 3 6 9")
+    print("version 1024, esto es arqui base con pipeline nuevo, aug, 0.7")
     print(f"[INFO] Active augmentation profile: {args.augmentation_profile}")
     print(f"[INFO] Crop scale: {crop_scale:.2f}")
     print(f"[INFO] Dual crop target probs -> crater: {1.0 - args.rock_crop_prob:.2f}, rock: {args.rock_crop_prob:.2f}")
@@ -275,7 +276,7 @@ def main():
 
         if mean_iou > best_miou:
             best_miou = mean_iou
-            torch.save(model.state_dict(), "best_model_256_newPipe.pth")
+            torch.save(model.state_dict(), "best_model_1024_crosVal3.pth")
             print(f"✅ Best model saved at epoch {epoch + 1} with mIoU: {mean_iou:.4f}")
 
 
