@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Run qualitative inference on real Moon images with a trained segmentation model.
 
-The script saves one mosaic per input image: the resized RGB input on the left and
-an alpha-blended prediction overlay on the right.
+The script saves one mosaic per input image: the resized RGB input on the left,
+the model input in the center, and an alpha-blended prediction overlay on the right.
 """
 
 import argparse
+import random
 import sys
 from pathlib import Path
 
@@ -71,10 +72,30 @@ def parse_args():
         default="_real_moon",
         help="Suffix added to every saved mosaic filename before .png.",
     )
+    parser.add_argument(
+        "--lusnar_dir",
+        type=Path,
+        default=None,
+        help=(
+            "Path to the LuSNAR dataset root. When provided, histogram matching "
+            "is applied to each input image before inference."
+        ),
+    )
+    parser.add_argument(
+        "--lusnar_samples",
+        type=int,
+        default=500,
+        help=(
+            "Number of LuSNAR images to randomly sample for computing the "
+            "reference histogram. Default: 500."
+        ),
+    )
     return parser.parse_args()
 
 
 def validate_args(args):
+    if args.lusnar_dir is not None and not args.lusnar_dir.exists():
+        raise FileNotFoundError(f"LuSNAR dataset root not found: {args.lusnar_dir}")
     if not args.input.is_file():
         raise FileNotFoundError(f"Model weights not found: {args.input}")
     if not args.images.is_dir():
@@ -173,6 +194,59 @@ def preprocess_image(image_path, image_size):
     return image, tensor
 
 
+def compute_lusnar_reference(lusnar_dir, image_size, n_samples) -> np.ndarray:
+    from skimage import exposure
+
+    del exposure
+
+    supported = {".jpg", ".jpeg", ".png"}
+    image_paths = []
+    for moon_dir in sorted(lusnar_dir.glob("Moon_*")):
+        if not moon_dir.is_dir():
+            continue
+        for image_dir in sorted(moon_dir.iterdir()):
+            rgb_dir = image_dir / "color"
+            if not rgb_dir.is_dir():
+                continue
+            image_paths.extend(
+                path
+                for path in sorted(rgb_dir.iterdir())
+                if path.is_file() and path.suffix.lower() in supported
+            )
+
+    if not image_paths:
+        raise RuntimeError(f"No LuSNAR RGB images found in {lusnar_dir}")
+
+    if len(image_paths) < n_samples:
+        print(
+            f"[WARN] Requested {n_samples} LuSNAR samples, but only found "
+            f"{len(image_paths)}. Using all available images."
+        )
+        sampled_paths = image_paths
+    else:
+        rng = random.Random(42)
+        sampled_paths = rng.sample(image_paths, n_samples)
+
+    images_np = []
+    for image_path in sampled_paths:
+        image = Image.open(image_path)
+        image = ImageOps.exif_transpose(image).convert("RGB")
+        image = image.resize((image_size, image_size), resample=Image.BILINEAR)
+        images_np.append(np.asarray(image, dtype=np.uint8))
+
+    reference = np.mean(np.stack(images_np, axis=0), axis=0).astype(np.uint8)
+    print(f"[INFO] LuSNAR reference computed from {len(sampled_paths)} images")
+    return reference
+
+
+def apply_histogram_matching(image_pil, reference_np) -> Image.Image:
+    from skimage import exposure
+
+    image_np = np.asarray(image_pil, dtype=np.uint8)
+    matched = exposure.match_histograms(image_np, reference_np, channel_axis=2)
+    return Image.fromarray(np.clip(matched, 0, 255).astype(np.uint8))
+
+
 def prediction_to_overlay(image, prediction, palette, alpha):
     image_np = np.asarray(image, dtype=np.float32)
     color_mask = palette[prediction]
@@ -180,10 +254,14 @@ def prediction_to_overlay(image, prediction, palette, alpha):
     return Image.fromarray(overlay.astype(np.uint8))
 
 
-def make_mosaic(image, overlay):
-    mosaic = Image.new("RGB", (image.width + overlay.width, image.height))
-    mosaic.paste(image, (0, 0))
-    mosaic.paste(overlay, (image.width, 0))
+def make_mosaic(original, matched, overlay):
+    mosaic = Image.new(
+        "RGB",
+        (original.width + matched.width + overlay.width, original.height),
+    )
+    mosaic.paste(original, (0, 0))
+    mosaic.paste(matched, (original.width, 0))
+    mosaic.paste(overlay, (original.width + matched.width, 0))
     return mosaic
 
 
@@ -202,6 +280,11 @@ def main():
     image_paths = find_images(args.images)
     model, num_classes = load_model(args.input, device)
     palette = build_palette(num_classes)
+    reference = None
+    if args.lusnar_dir is not None:
+        reference = compute_lusnar_reference(
+            args.lusnar_dir, args.image_size, args.lusnar_samples
+        )
 
     print(f"[INFO] Device: {device}")
     print(f"[INFO] Model: {args.input}")
@@ -212,14 +295,21 @@ def main():
 
     with torch.no_grad():
         for image_path in tqdm(image_paths, desc="Real Moon inference"):
-            image, tensor = preprocess_image(image_path, args.image_size)
-            tensor = tensor.to(device)
+            image, _ = preprocess_image(image_path, args.image_size)
+            if reference is not None:
+                matched = apply_histogram_matching(image, reference)
+                print("  [hist-match] applied")
+                matched.save(args.output / f"{image_path.stem}_matched.png")
+            else:
+                matched = image
+
+            tensor = TF.to_tensor(matched).unsqueeze(0).to(device)
 
             logits = model(tensor)
             prediction = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy().astype(np.int64)
 
-            overlay = prediction_to_overlay(image, prediction, palette, args.alpha)
-            mosaic = make_mosaic(image, overlay)
+            overlay = prediction_to_overlay(matched, prediction, palette, args.alpha)
+            mosaic = make_mosaic(image, matched, overlay)
             mosaic.save(output_path_for(image_path, args.output, args.suffix))
 
     print("[INFO] Qualitative mosaics saved successfully.")
