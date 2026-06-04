@@ -4,7 +4,9 @@
 This preprocessing script adjusts real lunar images using LuSNAR statistics without
 running segmentation inference. Dark pixels in the upper image region are treated
 as sky and matched to LuSNAR sky statistics; all remaining pixels are treated as
-terrain and matched to combined LuSNAR terrain statistics.
+terrain and matched to combined LuSNAR terrain statistics. After terrain matching,
+CLAHE is applied to enhance local contrast and improve edge visibility between
+regolith and rocks.
 """
 
 import argparse
@@ -32,7 +34,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Preprocess real lunar images with separate sky and terrain "
-            "histogram matching against LuSNAR reference statistics."
+            "histogram matching against LuSNAR reference statistics, "
+            "followed by CLAHE contrast enhancement on the terrain region."
         )
     )
     parser.add_argument(
@@ -87,6 +90,16 @@ def parse_args():
             "Default: 0.55."
         ),
     )
+    parser.add_argument(
+        "--clahe_limit",
+        type=float,
+        default=0.02,
+        help=(
+            "CLAHE clip limit for terrain contrast enhancement (0.0 to disable). "
+            "Higher values increase local contrast more aggressively. "
+            "Recommended range: 0.01-0.04. Default: 0.02."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -103,6 +116,8 @@ def validate_args(args):
         raise ValueError("--sky_threshold must be between 0 and 255")
     if not 0 < args.upper_fraction <= 1:
         raise ValueError("--upper_fraction must be in the range (0, 1]")
+    if args.clahe_limit < 0:
+        raise ValueError("--clahe_limit must be >= 0")
 
 
 def find_input_images(input_dir):
@@ -283,7 +298,27 @@ def build_sky_mask(image_np, sky_threshold, upper_fraction):
     return (rows < upper_boundary) & (grayscale < sky_threshold)
 
 
-def apply_region_matching(image_pil, sky_ref, terrain_ref, sky_threshold, upper_fraction):
+def apply_clahe_to_terrain(image_np, terrain_mask, clip_limit):
+    """Apply CLAHE channel-wise to terrain pixels to enhance local contrast."""
+    from skimage.exposure import equalize_adapthist
+
+    result = image_np.copy()
+
+    # Apply CLAHE to the full image per channel, then copy only terrain pixels back.
+    # Processing per channel independently preserves relative color balance while
+    # enhancing local contrast in each channel.
+    clahe_result = np.zeros_like(image_np, dtype=np.uint8)
+    for ch in range(3):
+        channel = image_np[:, :, ch].astype(np.float64) / 255.0
+        enhanced = equalize_adapthist(channel, clip_limit=clip_limit)
+        clahe_result[:, :, ch] = (enhanced * 255).clip(0, 255).astype(np.uint8)
+
+    result[terrain_mask] = clahe_result[terrain_mask]
+    return result
+
+
+def apply_region_matching(image_pil, sky_ref, terrain_ref, sky_threshold,
+                           upper_fraction, clahe_limit=0.02):
     from skimage import exposure
 
     img = np.asarray(image_pil, dtype=np.uint8)
@@ -291,14 +326,20 @@ def apply_region_matching(image_pil, sky_ref, terrain_ref, sky_threshold, upper_
     terrain_mask = ~sky_mask
     result = img.copy()
 
+    # --- Sky region: match to LuSNAR sky reference ---
     if sky_mask.any():
         sky_matched = exposure.match_histograms(img, sky_ref, channel_axis=2)
         sky_matched = np.clip(sky_matched, 0, 255).astype(np.uint8)
         result[sky_mask] = sky_matched[sky_mask]
 
+    # --- Terrain region: match to LuSNAR terrain reference ---
     terrain_matched = exposure.match_histograms(img, terrain_ref, channel_axis=2)
     terrain_matched = np.clip(terrain_matched, 0, 255).astype(np.uint8)
     result[terrain_mask] = terrain_matched[terrain_mask]
+
+    # --- CLAHE on terrain: enhance local contrast to recover rock/regolith edges ---
+    if clahe_limit > 0:
+        result = apply_clahe_to_terrain(result, terrain_mask, clahe_limit)
 
     return Image.fromarray(result)
 
@@ -322,6 +363,9 @@ def main():
         args.image_size,
         args.lusnar_samples,
     )
+
+    clahe_status = f"clip_limit={args.clahe_limit}" if args.clahe_limit > 0 else "disabled"
+    print(f"[INFO] CLAHE terrain enhancement: {clahe_status}")
 
     image_paths = find_input_images(args.input_dir)
     print(f"[INFO] Found {len(image_paths)} input images in {args.input_dir}")
@@ -347,6 +391,7 @@ def main():
             terrain_ref,
             args.sky_threshold,
             args.upper_fraction,
+            args.clahe_limit,
         )
         adjusted.save(args.output_dir / image_path.name)
         make_comparison_image(original, adjusted).save(
