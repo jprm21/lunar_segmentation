@@ -210,37 +210,54 @@ def fill_horizon_gaps(id_mask, gap_kernel):
 
 # ── Above-sky regolith correction ────────────────────────────────────────────
 
-def fix_regolith_above_sky(id_mask):
+def fix_regolith_above_sky(id_mask, top_fraction=0.15):
     """
-    Reclassify regolith pixels that appear above or inside the sky region as sky.
+    Reclassify regolith pixels near the top of the image that are annotation gaps.
 
     Two cases handled:
-    1. Regolith rows ABOVE the first sky row (annotation gap before sky starts).
-    2. Regolith rows INSIDE the sky band (between first and last sky row).
+    1. Regolith rows sandwiched between sky rows (sky above AND sky below
+       within a small window) — handles gaps inside the sky region.
+    2. Regolith rows in the top `top_fraction` of the image that have sky
+       within a small window below them — handles thin lines above the sky.
 
-    Regolith below the last sky row is left untouched — that is real terrain.
+    Regolith outside these two cases is left untouched.
 
     Returns (corrected_mask, number_of_pixels_fixed).
     """
-    sky_rows = np.where((id_mask == 4).any(axis=1))[0]
-    if len(sky_rows) == 0:
-        return id_mask, 0
-
-    first_sky_row = int(sky_rows.min())
-    last_sky_row  = int(sky_rows.max())
-
-    # All rows from 0 up to and including the last sky row are in the sky band.
-    # Any regolith pixel in that band is an annotation gap -> reassign to sky.
-    in_sky_band = np.zeros_like(id_mask, dtype=bool)
-    in_sky_band[:last_sky_row + 1, :] = True
-    to_fix = in_sky_band & (id_mask == 0)
-
-    if not to_fix.any():
+    sky_rows = set(int(r) for r in np.where((id_mask == 4).any(axis=1))[0])
+    if not sky_rows:
         return id_mask, 0
 
     result = id_mask.copy()
-    result[to_fix] = 4
-    return result, int(to_fix.sum())
+    fixed = 0
+    height = id_mask.shape[0]
+    window = 6
+    top_limit = int(height * top_fraction)
+
+    for row in range(height):
+        row_pixels = id_mask[row, :]
+        if not np.all(row_pixels == 0):
+            continue
+
+        has_sky_above = any(
+            (row - d) in sky_rows for d in range(1, window + 1) if row - d >= 0
+        )
+        has_sky_below = any(
+            (row + d) in sky_rows for d in range(1, window + 1) if row + d < height
+        )
+
+        # Case 1: sandwiched between sky rows
+        if has_sky_above and has_sky_below:
+            fixed += int((result[row, :] == 0).sum())
+            result[row, result[row, :] == 0] = 4
+            continue
+
+        # Case 2: near top of image with sky just below
+        if row < top_limit and has_sky_below:
+            fixed += int((result[row, :] == 0).sum())
+            result[row, result[row, :] == 0] = 4
+
+    return result, fixed
 
 
 # ── Core conversion ───────────────────────────────────────────────────────────
