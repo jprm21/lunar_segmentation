@@ -235,8 +235,9 @@ def fix_regolith_above_sky(id_mask, top_fraction=0.15):
     top_limit = int(height * top_fraction)
 
     for row in range(height):
-        row_pixels = id_mask[row, :]
-        if not np.all(row_pixels == 0):
+        # Skip rows that have no regolith pixels at all
+        regolith_in_row = (id_mask[row, :] == 0)
+        if not regolith_in_row.any():
             continue
 
         has_sky_above = any(
@@ -246,16 +247,16 @@ def fix_regolith_above_sky(id_mask, top_fraction=0.15):
             (row + d) in sky_rows for d in range(1, window + 1) if row + d < height
         )
 
-        # Case 1: sandwiched between sky rows
+        # Case 1: sandwiched between sky rows — fix regolith pixels in this row
         if has_sky_above and has_sky_below:
-            fixed += int((result[row, :] == 0).sum())
-            result[row, result[row, :] == 0] = 4
+            fixed += int(regolith_in_row.sum())
+            result[row, regolith_in_row] = 4
             continue
 
         # Case 2: near top of image with sky just below
         if row < top_limit and has_sky_below:
-            fixed += int((result[row, :] == 0).sum())
-            result[row, result[row, :] == 0] = 4
+            fixed += int(regolith_in_row.sum())
+            result[row, regolith_in_row] = 4
 
     return result, fixed
 
