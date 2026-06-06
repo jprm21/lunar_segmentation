@@ -210,54 +210,23 @@ def fill_horizon_gaps(id_mask, gap_kernel):
 
 # ── Above-sky regolith correction ────────────────────────────────────────────
 
-def fix_regolith_above_sky(id_mask, top_fraction=0.15):
+def fix_regolith_above_sky(id_mask, top_rows=15):
     """
-    Reclassify regolith pixels near the top of the image that are annotation gaps.
+    Reclassify regolith pixels in the first `top_rows` rows as sky.
 
-    Two cases handled:
-    1. Regolith rows sandwiched between sky rows (sky above AND sky below
-       within a small window) — handles gaps inside the sky region.
-    2. Regolith rows in the top `top_fraction` of the image that have sky
-       within a small window below them — handles thin lines above the sky.
-
-    Regolith outside these two cases is left untouched.
+    These top rows are always sky in lunar rover images — any regolith
+    there is an annotation gap. Only applies if the image actually has sky.
 
     Returns (corrected_mask, number_of_pixels_fixed).
     """
-    sky_rows = set(int(r) for r in np.where((id_mask == 4).any(axis=1))[0])
-    if not sky_rows:
+    sky_exists = (id_mask == 4).any()
+    if not sky_exists:
         return id_mask, 0
 
     result = id_mask.copy()
-    fixed = 0
-    height = id_mask.shape[0]
-    window = 6
-    top_limit = int(height * top_fraction)
-
-    for row in range(height):
-        # Skip rows that have no regolith pixels at all
-        regolith_in_row = (id_mask[row, :] == 0)
-        if not regolith_in_row.any():
-            continue
-
-        has_sky_above = any(
-            (row - d) in sky_rows for d in range(1, window + 1) if row - d >= 0
-        )
-        has_sky_below = any(
-            (row + d) in sky_rows for d in range(1, window + 1) if row + d < height
-        )
-
-        # Case 1: sandwiched between sky rows — fix regolith pixels in this row
-        if has_sky_above and has_sky_below:
-            fixed += int(regolith_in_row.sum())
-            result[row, regolith_in_row] = 4
-            continue
-
-        # Case 2: near top of image with sky just below
-        if row < top_limit and has_sky_below:
-            fixed += int(regolith_in_row.sum())
-            result[row, regolith_in_row] = 4
-
+    to_fix = (result[:top_rows, :] == 0)
+    fixed = int(to_fix.sum())
+    result[:top_rows, :][to_fix] = 4
     return result, fixed
 
 
