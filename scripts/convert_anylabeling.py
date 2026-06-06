@@ -207,6 +207,39 @@ def fill_horizon_gaps(id_mask, gap_kernel):
     return result, filled_count
 
 
+
+# ── Above-sky regolith correction ────────────────────────────────────────────
+
+def fix_regolith_above_sky(id_mask):
+    """
+    Reclassify regolith pixels that sit above the topmost sky pixel as sky.
+
+    Any regolith above the first row that contains sky is physically impossible
+    and is an annotation gap. Since sky is always the uppermost class, everything
+    above the sky boundary that is still regolith gets assigned to sky.
+
+    Returns (corrected_mask, number_of_pixels_fixed).
+    """
+    sky_rows = np.where((id_mask == 4).any(axis=1))[0]
+    if len(sky_rows) == 0:
+        return id_mask, 0
+
+    first_sky_row = int(sky_rows.min())
+    if first_sky_row == 0:
+        return id_mask, 0
+
+    above_sky = np.zeros_like(id_mask, dtype=bool)
+    above_sky[:first_sky_row, :] = True
+    to_fix = above_sky & (id_mask == 0)
+
+    if not to_fix.any():
+        return id_mask, 0
+
+    result = id_mask.copy()
+    result[to_fix] = 4  # reassign to sky
+    return result, int(to_fix.sum())
+
+
 # ── Core conversion ───────────────────────────────────────────────────────────
 
 def points_to_polygon(points):
@@ -276,6 +309,10 @@ def convert_json_to_mask(json_path, mode, default_class_id, gap_kernel):
             id_mask, filled_count = result
         else:
             id_mask = result
+
+    # Fix regolith pixels above the sky boundary
+    id_mask, above_sky_fixed = fix_regolith_above_sky(id_mask)
+    filled_count += above_sky_fixed
 
     if mode == "id":
         return Image.fromarray(id_mask, mode="L"), filled_count
