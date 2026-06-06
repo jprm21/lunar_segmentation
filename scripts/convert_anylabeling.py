@@ -22,6 +22,12 @@ Class mapping (LuSNAR official colors):
 
 Unannotated pixels default to regolith (class 0).
 Draw order: regolith -> mountain -> crater -> rock -> sky
+
+Gap filling:
+    Small regolith gaps between sky and mountain are filled automatically
+    using morphological closing on the combined sky+mountain region.
+    Kernel size is controlled with --gap_kernel (default: 5).
+    Set --gap_kernel 0 to disable.
 """
 
 import argparse
@@ -31,6 +37,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
+from scipy.ndimage import binary_closing
 from tqdm import tqdm
 
 # ── Class definitions ─────────────────────────────────────────────────────────
@@ -43,7 +50,6 @@ LABEL_TO_ID = {
     "sky":      4,
 }
 
-# Official LuSNAR hex codes converted to RGB
 ID_TO_COLOR = {
     0: (187,  70, 156),  # regolith  #BB469C
     1: (120,   0, 200),  # crater    #7800C8
@@ -53,10 +59,12 @@ ID_TO_COLOR = {
 }
 
 # Draw order: background first, foreground last
-# regolith(0) -> mountain(3) -> crater(1) -> rock(2) -> sky(4)
 DRAW_ORDER = [0, 3, 1, 2, 4]
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+
+# Class IDs considered "horizon region" for gap filling
+HORIZON_CLASS_IDS = {3, 4}  # mountain and sky
 
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -94,6 +102,16 @@ def parse_args():
         default="regolith",
         help="Class for pixels not covered by any annotation. Default: regolith.",
     )
+    parser.add_argument(
+        "--gap_kernel",
+        type=int,
+        default=5,
+        help=(
+            "Kernel size (px) for morphological closing used to fill small regolith "
+            "gaps between sky and mountain masks. Use odd numbers. "
+            "Set to 0 to disable. Default: 5."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -105,27 +123,20 @@ def validate_args(args):
             f"--default_class '{args.default_class}' is not valid. "
             f"Options: {list(LABEL_TO_ID.keys())}"
         )
+    if args.gap_kernel < 0:
+        raise ValueError("--gap_kernel must be >= 0")
 
 
 # ── Size resolution ───────────────────────────────────────────────────────────
 
 def resolve_image_size(json_path, data):
-    """
-    Determine (width, height) for the output mask.
-
-    Priority:
-      1. Find the original image next to the JSON and read its actual size.
-      2. Fall back to imageWidth/imageHeight stored in the JSON.
-      3. Fall back to 384x384 with a warning.
-    """
-    # Try to find the original image file beside the JSON
+    """Read size from the original image next to the JSON, or fall back to JSON dims."""
     for ext in IMAGE_EXTENSIONS:
         candidate = json_path.with_suffix(ext)
         if candidate.exists():
             with Image.open(candidate) as img:
                 return img.size  # (width, height)
 
-    # Fall back to JSON-stored dimensions
     w = data.get("imageWidth")
     h = data.get("imageHeight")
     if w and h:
@@ -140,13 +151,69 @@ def resolve_image_size(json_path, data):
     return 384, 384
 
 
+# ── Gap filling ───────────────────────────────────────────────────────────────
+
+def fill_horizon_gaps(id_mask, gap_kernel):
+    """
+    Fill small regolith gaps between sky and mountain using morphological closing.
+
+    Works by:
+    1. Building a binary mask of all horizon pixels (sky OR mountain)
+    2. Applying closing to expand that region and fill small holes
+    3. Where closing added new pixels (was regolith, now covered by closing),
+       assign them the nearest horizon class using a simple vertical scan —
+       pixels above the horizon boundary get sky, below get mountain.
+    """
+    if gap_kernel == 0:
+        return id_mask
+
+    horizon_mask = np.isin(id_mask, list(HORIZON_CLASS_IDS))
+
+    struct = np.ones((gap_kernel, gap_kernel), dtype=bool)
+    closed = binary_closing(horizon_mask, structure=struct)
+
+    # Pixels that closing added (were regolith gaps, now should be horizon)
+    new_pixels = closed & ~horizon_mask & (id_mask == 0)  # only fill regolith gaps
+
+    if not new_pixels.any():
+        return id_mask
+
+    result = id_mask.copy()
+
+    # For each new pixel, assign sky if it's above the centroid row of the
+    # horizon region, mountain otherwise. Simple and avoids nearest-neighbor search.
+    horizon_rows = np.where(horizon_mask.any(axis=1))[0]
+    if len(horizon_rows) == 0:
+        return id_mask
+
+    # Find the boundary row between mountain and sky in the original mask
+    # Sky tends to be in the upper portion, mountain just below it
+    sky_rows    = np.where((id_mask == 4).any(axis=1))[0]
+    mountain_rows = np.where((id_mask == 3).any(axis=1))[0]
+
+    if len(sky_rows) > 0 and len(mountain_rows) > 0:
+        # Boundary is between the last sky row and first mountain row
+        boundary_row = (sky_rows.max() + mountain_rows.min()) // 2
+    elif len(sky_rows) > 0:
+        boundary_row = sky_rows.max()
+    else:
+        boundary_row = mountain_rows.min() if len(mountain_rows) > 0 else 0
+
+    new_pixel_rows, new_pixel_cols = np.where(new_pixels)
+    for r, c in zip(new_pixel_rows, new_pixel_cols):
+        result[r, c] = 4 if r <= boundary_row else 3  # sky above, mountain below
+
+    filled_count = int(new_pixels.sum())
+    return result, filled_count
+
+
 # ── Core conversion ───────────────────────────────────────────────────────────
 
 def points_to_polygon(points):
     return [tuple(pt) for pt in points]
 
 
-def convert_json_to_mask(json_path, mode, default_class_id):
+def convert_json_to_mask(json_path, mode, default_class_id, gap_kernel):
     with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
 
@@ -201,14 +268,23 @@ def convert_json_to_mask(json_path, mode, default_class_id):
 
     id_mask = np.array(id_image, dtype=np.uint8)
 
-    if mode == "id":
-        return Image.fromarray(id_mask, mode="L")
+    # Fill small regolith gaps between sky and mountain
+    filled_count = 0
+    if gap_kernel > 0:
+        result = fill_horizon_gaps(id_mask, gap_kernel)
+        if isinstance(result, tuple):
+            id_mask, filled_count = result
+        else:
+            id_mask = result
 
-    # color mode: map each class ID to its LuSNAR RGB color
+    if mode == "id":
+        return Image.fromarray(id_mask, mode="L"), filled_count
+
+    # color mode
     color_mask = np.zeros((height, width, 3), dtype=np.uint8)
     for class_id, color in ID_TO_COLOR.items():
         color_mask[id_mask == class_id] = color
-    return Image.fromarray(color_mask, mode="RGB")
+    return Image.fromarray(color_mask, mode="RGB"), filled_count
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -224,24 +300,29 @@ def main():
     if not json_files:
         raise RuntimeError(f"No .json files found in {args.input_dir}")
 
+    gap_status = f"kernel={args.gap_kernel}px" if args.gap_kernel > 0 else "disabled"
     print(f"[INFO] Found {len(json_files)} annotation files in {args.input_dir}")
     print(f"[INFO] Output mode    : {args.mode}")
     print(f"[INFO] Default class  : {args.default_class} (id={default_class_id})")
+    print(f"[INFO] Gap filling    : {gap_status}")
     print(f"[INFO] Output dir     : {args.output_dir}")
 
-    converted = 0
-    failed    = 0
+    converted    = 0
+    failed       = 0
+    total_filled = 0
 
     for json_path in tqdm(json_files, desc="Converting annotations"):
         try:
-            mask = convert_json_to_mask(
+            mask, filled = convert_json_to_mask(
                 json_path,
                 mode=args.mode,
                 default_class_id=default_class_id,
+                gap_kernel=args.gap_kernel,
             )
             output_path = args.output_dir / f"{json_path.stem}.png"
             mask.save(output_path)
-            converted += 1
+            converted    += 1
+            total_filled += filled
 
         except Exception as error:  # noqa: BLE001
             warnings.warn(
@@ -250,6 +331,8 @@ def main():
             failed += 1
 
     print(f"[INFO] Done — converted: {converted}, failed: {failed}")
+    if args.gap_kernel > 0:
+        print(f"[INFO] Total gap pixels filled: {total_filled}")
     print(f"[INFO] Masks saved to  : {args.output_dir}")
 
 
