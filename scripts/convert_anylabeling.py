@@ -212,46 +212,35 @@ def fill_horizon_gaps(id_mask, gap_kernel):
 
 def fix_regolith_above_sky(id_mask):
     """
-    Reclassify regolith pixels that are sandwiched between sky rows as sky.
+    Reclassify regolith pixels that appear above or inside the sky region as sky.
 
-    Instead of using the first sky row as a hard boundary (which incorrectly
-    reclassifies legitimate regolith below a sky band), this function only fixes
-    regolith rows that have sky both above AND below them within a small window.
-    This handles the case of thin annotation gaps without touching real terrain.
+    Two cases handled:
+    1. Regolith rows ABOVE the first sky row (annotation gap before sky starts).
+    2. Regolith rows INSIDE the sky band (between first and last sky row).
+
+    Regolith below the last sky row is left untouched — that is real terrain.
 
     Returns (corrected_mask, number_of_pixels_fixed).
     """
-    sky_rows = set(int(r) for r in np.where((id_mask == 4).any(axis=1))[0])
-    if not sky_rows:
+    sky_rows = np.where((id_mask == 4).any(axis=1))[0]
+    if len(sky_rows) == 0:
+        return id_mask, 0
+
+    first_sky_row = int(sky_rows.min())
+    last_sky_row  = int(sky_rows.max())
+
+    # All rows from 0 up to and including the last sky row are in the sky band.
+    # Any regolith pixel in that band is an annotation gap -> reassign to sky.
+    in_sky_band = np.zeros_like(id_mask, dtype=bool)
+    in_sky_band[:last_sky_row + 1, :] = True
+    to_fix = in_sky_band & (id_mask == 0)
+
+    if not to_fix.any():
         return id_mask, 0
 
     result = id_mask.copy()
-    fixed = 0
-    height = id_mask.shape[0]
-
-    # Search window: how many rows above/below to look for sky (covers thick gaps)
-    window = 6
-
-    for row in range(height):
-        # Only consider rows that are entirely or mostly regolith
-        row_pixels = id_mask[row, :]
-        if not np.all(row_pixels == 0):
-            continue
-
-        # Check if there is sky within `window` rows above this row
-        has_sky_above = any(
-            (row - d) in sky_rows for d in range(1, window + 1) if row - d >= 0
-        )
-        # Check if there is sky within `window` rows below this row
-        has_sky_below = any(
-            (row + d) in sky_rows for d in range(1, window + 1) if row + d < height
-        )
-
-        if has_sky_above and has_sky_below:
-            fixed += int((result[row, :] == 0).sum())
-            result[row, result[row, :] == 0] = 4  # reassign regolith to sky
-
-    return result, fixed
+    result[to_fix] = 4
+    return result, int(to_fix.sum())
 
 
 # ── Core conversion ───────────────────────────────────────────────────────────
