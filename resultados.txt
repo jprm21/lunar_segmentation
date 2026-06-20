@@ -1,3 +1,75 @@
+Train
+Scanning dataset...
+
+=== Pixel statistics ===
+Class 0:   1364187635 pixels (59.67%)
+Class 1:     51750037 pixels ( 2.26%)
+Class 2:     10792865 pixels ( 0.47%)
+Class 3:     32441372 pixels ( 1.42%)
+Class 4:    826972091 pixels (36.17%)
+
+=== Suggested class weights ===
+Class 0: 0.3352
+Class 1: 8.8353
+Class 2: 42.3640
+Class 3: 14.0940
+Class 4: 0.5529
+
+Torch tensor:
+torch.tensor([0.3351656240455515, 8.835332813385234, 42.36398769001558, 14.094003175944593, 0.5528950795027495], dtype=torch.float32)
+
+
+
+Val
+
+
+Scanning dataset...
+
+=== Pixel statistics ===
+Class 0:    311409258 pixels (61.30%)
+Class 1:     10821283 pixels ( 2.13%)
+Class 2:       790630 pixels ( 0.16%)
+Class 3:      6470944 pixels ( 1.27%)
+Class 4:    178539885 pixels (35.14%)
+
+=== Suggested class weights ===
+Class 0: 0.3263
+Class 1: 9.3895
+Class 2: 128.5132
+Class 3: 15.7019
+Class 4: 0.5691
+
+Torch tensor:
+torch.tensor([0.3262793169752198, 9.389496605901536, 128.51321098364596, 15.70194395129984, 0.5690963674587334], dtype=torch.float32)
+
+
+
+
+TEST
+
+Scanning dataset...
+
+=== Pixel statistics ===
+Class 0:    287665849 pixels (59.60%)
+Class 1:     13321497 pixels ( 2.76%)
+Class 2:      1553682 pixels ( 0.32%)
+Class 3:      6451216 pixels ( 1.34%)
+Class 4:    173638156 pixels (35.98%)
+
+=== Suggested class weights ===
+Class 0: 0.3355
+Class 1: 7.2459
+Class 2: 62.1273
+Class 3: 14.9625
+Class 4: 0.5559
+
+Torch tensor:
+torch.tensor([0.33554931993335085, 7.245888356241044, 62.12730790470637, 14.962462890717037, 0.5559036229341205], dtype=torch.float32)
+
+
+
+
+
 python -m scripts.inspect_dataset
 [INFO] Found 13006 samples
 Scanning masks: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 13006/13006 [38:28<00:00,  5.63it/s]
