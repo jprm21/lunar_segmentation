@@ -112,6 +112,17 @@ def parse_args():
             "Set to 0 to disable. Default: 5."
         ),
     )
+    parser.add_argument(
+        "--fix_top_rows",
+        type=int,
+        default=15,
+        help=(
+            "Number of rows from the top of the image where regolith pixels are "
+            "reclassified as sky (annotation gap correction). "
+            "Set to 0 to disable, e.g. for images where the top rows contain "
+            "mountain or terrain instead of sky. Default: 15."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -125,6 +136,8 @@ def validate_args(args):
         )
     if args.gap_kernel < 0:
         raise ValueError("--gap_kernel must be >= 0")
+    if args.fix_top_rows < 0:
+        raise ValueError("--fix_top_rows must be >= 0")
 
 
 # ── Size resolution ───────────────────────────────────────────────────────────
@@ -210,7 +223,7 @@ def fill_horizon_gaps(id_mask, gap_kernel):
 
 # ── Above-sky regolith correction ────────────────────────────────────────────
 
-def fix_regolith_above_sky(id_mask, top_rows=15):
+def fix_regolith_above_sky(id_mask, top_rows):
     """
     Reclassify regolith pixels in the first `top_rows` rows as sky.
 
@@ -230,13 +243,28 @@ def fix_regolith_above_sky(id_mask, top_rows=15):
     return result, fixed
 
 
+# ── Palette construction ──────────────────────────────────────────────────────
+
+def build_lusnar_palette():
+    """
+    Build a 256-entry flat RGB palette for PIL's mode "P", matching the exact
+    palette structure found in original LuSNAR label PNGs: indices 0-4 hold the
+    class colors, all remaining indices (5-255) are black, identical to the
+    verified reference file (mode "P", palette[0:5] = class colors, rest = (0,0,0)).
+    """
+    palette = [0, 0, 0] * 256  # default everything to black
+    for class_id, color in ID_TO_COLOR.items():
+        palette[class_id * 3 : class_id * 3 + 3] = list(color)
+    return palette
+
+
 # ── Core conversion ───────────────────────────────────────────────────────────
 
 def points_to_polygon(points):
     return [tuple(pt) for pt in points]
 
 
-def convert_json_to_mask(json_path, mode, default_class_id, gap_kernel):
+def convert_json_to_mask(json_path, mode, default_class_id, gap_kernel, fix_top_rows):
     with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
 
@@ -301,11 +329,19 @@ def convert_json_to_mask(json_path, mode, default_class_id, gap_kernel):
             id_mask = result
 
     # Fix regolith pixels above the sky boundary
-    id_mask, above_sky_fixed = fix_regolith_above_sky(id_mask)
+    id_mask, above_sky_fixed = fix_regolith_above_sky(id_mask, top_rows=fix_top_rows)
     filled_count += above_sky_fixed
 
     if mode == "id":
-        return Image.fromarray(id_mask, mode="L"), filled_count
+        # Save as palette-indexed PNG (mode "P"), matching LuSNAR's own format.
+        # The stored pixel values are still class IDs 0-4 (verified identical to
+        # LuSNAR via np.array(Image.open(path)) -> values 0-4), but an embedded
+        # palette makes the file display in color in any image viewer, exactly
+        # like the original LuSNAR label PNGs.
+        id_image = Image.fromarray(id_mask, mode="L").convert("P")
+        palette = build_lusnar_palette()
+        id_image.putpalette(palette)
+        return id_image, filled_count
 
     # color mode
     color_mask = np.zeros((height, width, 3), dtype=np.uint8)
@@ -328,10 +364,12 @@ def main():
         raise RuntimeError(f"No .json files found in {args.input_dir}")
 
     gap_status = f"kernel={args.gap_kernel}px" if args.gap_kernel > 0 else "disabled"
+    top_status = f"first {args.fix_top_rows} rows" if args.fix_top_rows > 0 else "disabled"
     print(f"[INFO] Found {len(json_files)} annotation files in {args.input_dir}")
     print(f"[INFO] Output mode    : {args.mode}")
     print(f"[INFO] Default class  : {args.default_class} (id={default_class_id})")
     print(f"[INFO] Gap filling    : {gap_status}")
+    print(f"[INFO] Top-row fix    : {top_status}")
     print(f"[INFO] Output dir     : {args.output_dir}")
 
     converted    = 0
@@ -345,6 +383,7 @@ def main():
                 mode=args.mode,
                 default_class_id=default_class_id,
                 gap_kernel=args.gap_kernel,
+                fix_top_rows=args.fix_top_rows,
             )
             output_path = args.output_dir / f"{json_path.stem}.png"
             mask.save(output_path)
