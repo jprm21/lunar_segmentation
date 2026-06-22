@@ -67,6 +67,16 @@ def parse_args():
         default=255,
         help="Label value ignored when computing metrics (default: 255).",
     )
+    parser.add_argument(
+        "--sixteen-bit-scale",
+        choices=["per-image", "fixed"],
+        default="per-image",
+        help=(
+            "How to rescale 16-bit grayscale images (mode 'I;16') to 8-bit RGB. "
+            "'per-image' scales by that image's own max value (default). "
+            "'fixed' scales by the theoretical max of 65535."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -104,6 +114,48 @@ def collect_samples(test_root):
         raise RuntimeError(f"No labeled samples found in {color_dir} and {label_dir}")
 
     return samples
+
+
+def load_image_safe(path, sixteen_bit_scale="per-image"):
+    """
+    Load an image as RGB, correctly handling 16-bit grayscale sources.
+
+    PIL's default .convert("RGB") on mode "I;16" images (0-65535 range) does
+    not rescale to the 8-bit range correctly, producing washed-out/near-white
+    images. This function detects that mode and rescales explicitly before
+    converting, so pixel values returned are meaningful 0-255 RGB.
+
+    Parameters
+    ----------
+    path : Path or str
+        Image file path.
+    sixteen_bit_scale : str
+        'per-image' -> scale by this image's own max value (adapts to dynamic
+                       range actually used by this specific image).
+        'fixed'     -> scale by the theoretical max of 65535 (consistent
+                       scaling across all 16-bit images, but may look dim if
+                       the source doesn't use the full dynamic range).
+
+    Returns
+    -------
+    PIL.Image in RGB mode.
+    """
+    img = Image.open(path)
+
+    if img.mode == "I;16":
+        arr = np.asarray(img).astype(np.float32)
+
+        if sixteen_bit_scale == "fixed":
+            denom = 65535.0
+        else:  # "per-image"
+            denom = float(arr.max()) if arr.max() > 0 else 1.0
+
+        arr_8bit = np.clip(arr / denom * 255.0, 0, 255).astype(np.uint8)
+        img = Image.fromarray(arr_8bit, mode="L").convert("RGB")
+    else:
+        img = img.convert("RGB")
+
+    return img
 
 
 def compute_iou_per_class(pred, target, num_classes, ignore_index=255):
@@ -156,8 +208,8 @@ def load_model(model_path, num_classes, pretrained_backbone, device):
     return model
 
 
-def preprocess(image_path, label_path, image_size, device):
-    image = Image.open(image_path).convert("RGB")
+def preprocess(image_path, label_path, image_size, device, sixteen_bit_scale="per-image"):
+    image = load_image_safe(image_path, sixteen_bit_scale=sixteen_bit_scale)
     label = Image.open(label_path).convert("RGB")
 
     image_resized = TF.resize(image, (image_size, image_size), interpolation=Image.BILINEAR)
@@ -186,6 +238,7 @@ def main():
     print(f"[INFO] Loading model: {args.model}")
     print(f"[INFO] Found {len(samples)} labeled test images")
     print(f"[INFO] Resize before inference: {args.image_size}x{args.image_size}")
+    print(f"[INFO] 16-bit image scaling mode: {args.sixteen_bit_scale}")
 
     model = load_model(
         model_path=args.model,
@@ -203,13 +256,21 @@ def main():
     correct_pixels = torch.zeros((), dtype=torch.float64, device=DEVICE)
     valid_pixels = torch.zeros((), dtype=torch.float64, device=DEVICE)
 
+    sixteen_bit_count = 0
+
     with torch.no_grad():
         for image_path, label_path in tqdm(samples, desc="Testing"):
+            # Track how many 16-bit images were encountered, for the summary
+            with Image.open(image_path) as raw_img:
+                if raw_img.mode == "I;16":
+                    sixteen_bit_count += 1
+
             image_tensor, image_np, target_np, target_tensor = preprocess(
                 image_path=image_path,
                 label_path=label_path,
                 image_size=args.image_size,
                 device=DEVICE,
+                sixteen_bit_scale=args.sixteen_bit_scale,
             )
 
             logits = model(image_tensor)
@@ -249,6 +310,8 @@ def main():
 
     print("\nFinal test metrics")
     print(f"Images: {len(samples)}")
+    if sixteen_bit_count > 0:
+        print(f"[INFO] 16-bit images detected and rescaled: {sixteen_bit_count}")
     print(f"mIoU: {format_metric(miou)}")
     print(f"Global pixel accuracy: {format_metric(global_accuracy)}")
 
