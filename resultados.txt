@@ -1,4 +1,26 @@
 Resulatados de los modelos sobre el grupo test
+E15
+root@3ef004c73ec3:/workspace/lunar-segmentation# python scripts/test.py --model Inves2/best_model_crop_dual_aug_384_ASPP.pth --test_images data/Moon_12/ --image-size 384 --save-segmentation-dir outputs_BSLASPP/ --no-pretrained-backbone 
+Using device: cuda
+[INFO] Loading model: Inves2/best_model_crop_dual_aug_384_ASPP.pth
+[INFO] Found 172 labeled test images
+[INFO] Resize before inference: 384x384
+[INFO] 16-bit image scaling mode: per-image
+[INFO] Saving mosaics to: outputs_BSLASPP
+Testing: 100%|██████████████████████████████████████████████████| 172/172 [00:35<00:00,  4.81it/s]
+
+Final test metrics
+Images: 172
+[INFO] 16-bit images detected and rescaled: 18
+mIoU: 0.3510
+Global pixel accuracy: 0.7464
+IoU Regolith: 0.6595
+IoU Crater: 0.0001
+IoU Rock: 0.0090
+IoU Mountain: 0.1227
+IoU Sky: 0.9636
+
+
 
 E13
 root@3ef004c73ec3:/workspace/lunar-segmentation# python scripts/test.py --model models_new_pipeline/best_model_384_newPipe0-7.pth --test_images data/Moon_12/ --image-size 384 --save-segmentation-dir outputs_BSL2/ --no-pretrained-backbone 
