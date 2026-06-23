@@ -1,3 +1,75 @@
+Resulatados de los modelos sobre el grupo test
+
+E13
+root@3ef004c73ec3:/workspace/lunar-segmentation# python scripts/test.py --model models_new_pipeline/best_model_384_newPipe0-7.pth --test_images data/Moon_12/ --image-size 384 --save-segmentation-dir outputs_BSL2/ --no-pretrained-backbone 
+Using device: cuda
+[INFO] Loading model: models_new_pipeline/best_model_384_newPipe0-7.pth
+[INFO] Found 172 labeled test images
+[INFO] Resize before inference: 384x384
+[INFO] 16-bit image scaling mode: per-image
+[INFO] Saving mosaics to: outputs_BSL2
+Testing: 100%|██████████████████████████████████████████████████| 172/172 [00:35<00:00,  4.90it/s]
+
+Final test metrics
+Images: 172
+[INFO] 16-bit images detected and rescaled: 18
+mIoU: 0.3478
+Global pixel accuracy: 0.8084
+IoU Regolith: 0.7608
+IoU Crater: 0.0032
+IoU Rock: 0.0110
+IoU Mountain: 0.0869
+IoU Sky: 0.8772
+
+
+E14
+root@3ef004c73ec3:/workspace/lunar-segmentation# python scripts/test.py --model models_new_pipeline/best_model_1024_newPipe.pth --test_images data/Moon_12/ --image-size 1024 --save-segmentation-dir outputs_BSL1024/ --no-pretrained-backbone 
+Using device: cuda
+[INFO] Loading model: models_new_pipeline/best_model_1024_newPipe.pth
+[INFO] Found 172 labeled test images
+[INFO] Resize before inference: 1024x1024
+[INFO] 16-bit image scaling mode: per-image
+[INFO] Saving mosaics to: outputs_BSL1024
+Testing: 100%|██████████████████████████████████████████████████| 172/172 [02:31<00:00,  1.14it/s]
+
+Final test metrics
+Images: 172
+[INFO] 16-bit images detected and rescaled: 18
+mIoU: 0.3278
+Global pixel accuracy: 0.6967
+IoU Regolith: 0.5914
+IoU Crater: 0.0003
+IoU Rock: 0.0063
+IoU Mountain: 0.0780
+IoU Sky: 0.9631
+
+
+E15
+root@3ef004c73ec3:/workspace/lunar-segmentation# python scripts/test.py --model models_new_pipeline/best_model_384_newPipe0-7.pth --test_images data/Moon_12/ --image-size 384 --save-segmentation-dir outputs_BSL2/ --no-pretrained-backbone 
+Using device: cuda
+[INFO] Loading model: models_new_pipeline/best_model_384_newPipe0-7.pth
+[INFO] Found 172 labeled test images
+[INFO] Resize before inference: 384x384
+[INFO] 16-bit image scaling mode: per-image
+[INFO] Saving mosaics to: outputs_BSL2
+Testing: 100%|██████████████████████████████████████████████████| 172/172 [00:35<00:00,  4.90it/s]
+
+Final test metrics
+Images: 172
+[INFO] 16-bit images detected and rescaled: 18
+mIoU: 0.3478
+Global pixel accuracy: 0.8084
+IoU Regolith: 0.7608
+IoU Crater: 0.0032
+IoU Rock: 0.0110
+IoU Mountain: 0.0869
+IoU Sky: 0.8772
+
+
+
+
+
+
 Train
 Scanning dataset...
 
