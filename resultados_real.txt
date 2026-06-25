@@ -1686,3 +1686,24 @@ IoU Mountain: 0.4874
 IoU Sky: 0.9925
 
 >>>>>>> Stashed changes
+
+
+
+root@ce7f8e76aba8:/workspace/lunar-segmentation# python scripts/test.py --model best_model_baseline_384_sampler.pth --image-size 384 --no-pretrained-backbone --test_images data/Moon_12/
+Using device: cuda
+[INFO] Loading model: best_model_baseline_384_sampler.pth
+[INFO] Found 172 labeled test images
+[INFO] Resize before inference: 384x384
+[INFO] 16-bit image scaling mode: per-image
+Testing: 100%|██████████████████████████████████████████████████| 172/172 [00:19<00:00,  8.80it/s]
+
+Final test metrics
+Images: 172
+mIoU: 0.5192
+Global pixel accuracy: 0.7733
+IoU Regolith: 0.6584
+IoU Crater: 0.1059
+IoU Rock: 0.2652
+IoU Mountain: 0.5731
+IoU Sky: 0.9935
+
